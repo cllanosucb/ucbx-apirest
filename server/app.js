@@ -1,9 +1,12 @@
 require('./config/config');
 require('dotenv').config();
-const cors = require('cors')
+const cors = require('cors');
+const path = require('path');
 const express = require('express');
 const app = express();
 
+//Directorio publico
+app.use(express.static('server/public'));
 //Usar cors
 app.use(cors());
 // parse application/x-www-form-urlencoded
@@ -17,6 +20,11 @@ app.get('/', (req, res) => {
     res.json({
         msg: "Servidor UCBONLINE iniciado"
     });
+})
+
+//Manejo de otras rutas
+app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, 'public/index.html'));
 })
 
 app.listen(process.env.PORT, () => {

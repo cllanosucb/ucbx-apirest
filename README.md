@@ -2,7 +2,6 @@
 
 La aplicacion de node.js es un API REST que permite manejar la diferentes instancias de la plataforma neo con las que se cuenta
 Con la aplicacion se tendran las diferentes `endponts` de las siguientes instancias:
-The node.js example app teaches the very basics of how to work with Contentful:
 
 - Pregrado
 - Postgrado
