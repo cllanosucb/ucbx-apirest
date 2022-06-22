@@ -18,7 +18,7 @@ app.use('/api', require('./routes/index'));
 
 app.get('/api', (req, res) => {
     res.json({
-        msg: "Servidor UCBONLINE iniciado"
+        msg: "Servidor UCBX iniciado"
     });
 })
 
