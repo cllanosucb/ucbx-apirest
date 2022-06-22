@@ -16,7 +16,7 @@ app.use(express.json());
 //Configuracion global de rutas
 app.use('/api', require('./routes/index'));
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
     res.json({
         msg: "Servidor UCBONLINE iniciado"
     });
