@@ -3,10 +3,14 @@ require('dotenv').config();
 const cors = require('cors');
 const path = require('path');
 const express = require('express');
+const fileUpload = require('express-fileupload');
 const app = express();
 
+//Uso de file-upload
+app.use(fileUpload());
 //Directorio publico
 app.use(express.static('server/public'));
+//app.use(express.static(path.resolve(__dirname, '../csv')));
 //Usar cors
 app.use(cors());
 // parse application/x-www-form-urlencoded
