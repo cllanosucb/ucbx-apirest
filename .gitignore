@@ -6,5 +6,5 @@ node_modules/
 
 #carpetas
 csv/
-server/upload/paralelos/
-server/upload/pregrado/
+server/uploads/paralelos/
+server/uploads/pregrado/
