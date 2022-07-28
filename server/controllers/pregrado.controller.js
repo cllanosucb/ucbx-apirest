@@ -8,7 +8,7 @@ const { error, success } = require('./respuestas.controller');
 const { formatoFecha } = require('../tools/util.tools');
 
 registrarAsignaturasPregrado = async(datos, user) => {
-    let insert;
+    let insert = {};
     let contErrorInsert = 0;
     let contUpdate = 0;
     let contErroUpdate = 0;
@@ -57,18 +57,14 @@ registrarInscripcionesPregrado = async(datos, user) => {
             return success({
                 msg: "Registros creados",
                 data: {
-                    insert: JSON.stringify(respInsert.data, (key, value) =>
-                        typeof value === "bigint" ? value.toString() + "" : value
-                    ),
+                    insert: respInsert.data,
                     msg: `Datos registrados ${contInsert}`
                 }
             });
         } else {
             return error({
                 msg: "Error interno del servidor",
-                error: JSON.stringify(respInsert.error, (key, value) =>
-                    typeof value === "bigint" ? value.toString() + "" : value
-                )
+                error: respInsert.error
             });
         }
     } else {
@@ -123,8 +119,8 @@ transformarDatosAsignatura = (a, user) => {
         a.id_regional.toString().toLowerCase() === 'null' ? JSON.parse(a.id_regional) : a.id_regional,
         a.nombre_regional,
         a.departamento_docente.toLowerCase() === 'null' ? JSON.parse(a.departamento_docente) : a.departamento_docente,
-        `${a.id_regional}.${a.id_materia}.${a.id_docente}`,
-        `${a.id_regional}.${a.id_paralelo}`,
+        `'${a.id_regional}.${a.id_materia}.${a.id_docente}'`,
+        `'${a.id_regional}.${a.id_paralelo}'`,
         user,
     ];
 }

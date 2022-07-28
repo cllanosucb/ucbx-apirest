@@ -39,10 +39,22 @@ const subirExcelPregrado = async(req = request, res = response) => {
     try {
         const respAr = await subirArchivo(archivo, ruta);
         const respCargaDatos = await cargarDatos(ruta, user);
-        return res.json(respCargaDatos);
+
+        //console.log(respCargaDatos);
+        return res.status(200).json(success({
+            msg: "Resultado de creacion",
+            data: JSON.stringify(respCargaDatos.data, (key, value) =>
+                typeof value === "bigint" ? value.toString() + "" : value
+            )
+        }));
     } catch (err) {
         console.log(err);
-        return res.status(500).json(err);
+        return res.status(500).json(error({
+            error: {
+                msg: "Error interno",
+                error: err
+            }
+        }));
     }
 }
 
@@ -56,13 +68,13 @@ cargarDatos = async(ruta, user) => {
     const datos1 = xlsx.utils.sheet_to_json(workbook.Sheets[hoja2]);
     const respInsertAsignaturas = await registrarAsignaturasPregrado(datos, user);
     const respInsertInscripciones = await registrarInscripcionesPregrado(datos1, user);
+    console.log("respInsertAsignaturas", respInsertAsignaturas);
+    console.log("respInsertInscripciones", respInsertInscripciones);
     return success({
         msg: "Resultado de la creacion de registros",
         data: {
-            asignaturas: respInsertAsignaturas.data,
-            inscripciones: JSON.stringify(respInsertInscripciones, (key, value) =>
-                typeof value === "bigint" ? value.toString() + "" : value
-            )
+            asignaturas: respInsertAsignaturas.ok ? respInsertAsignaturas.data : respInsertAsignaturas.error,
+            inscripciones: respInsertInscripciones.ok ? respInsertInscripciones.data : respInsertInscripciones.error
         }
     });
 }

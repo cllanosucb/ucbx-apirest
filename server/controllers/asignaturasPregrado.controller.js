@@ -255,7 +255,6 @@ const crearParalelos = async(plist, url, api_key, user) => {
         const resParalelos = await peticionApiNeo(url, 'add_class', api_key, parametros);
         if (resParalelos.ok) {
             datosRes.totales.paralelos_creados_neo = datosRes.totales.paralelos_creados_neo + 1;
-            const updatep = await updateParalelo(plist[i].id_paralelo);
             const insertp = await insertParalelo(resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user);
             if (!insertp.ok) {
                 datosRes.totales.error_insert_paralelos_db = datosRes.totales.error_insert_paralelos_db + 1;
@@ -275,7 +274,7 @@ const crearParalelos = async(plist, url, api_key, user) => {
                 respuesta: resParalelos
             });
         }
-        await delay(100)
+        //await delay(100)
     }
     return datosRes;
 }
