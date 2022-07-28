@@ -8,32 +8,35 @@ const { error, success } = require('./respuestas.controller');
 const { formatoFecha } = require('../tools/util.tools');
 
 registrarAsignaturasPregrado = async(datos, user) => {
-    let contInsert = 0;
+    let insert;
     let contErrorInsert = 0;
     let contUpdate = 0;
     let contErroUpdate = 0;
     const sqlParalelosPorId = "SELECT * FROM Datos_asignaturas WHERE id_paralelo = ?";
-    const sqlInsertAsignaturas = `INSERT INTO Datos_asignaturas (semestre_descripcion,semestre_fecha_inicio,semestre_fecha_fin,semestre_resumido,id_semestre,id_paralelo,paralelo_num_creditos,numero_paralelo,id_materia,materia_sigla,materia_nombre,id_carrera,carrera_nombre,departamento_materia,num_alumnos_inscritos,id_docente,ap_paterno_docente,ap_materno_docente,nombres_docente,ci_docente,sexo_docente,fecha_nacimiento_docente,celular_docente,email_ucb_docente,id_regional,nombre_regional,departamento_docente,usuario_registro) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sqlInsertAsignaturas = `INSERT INTO Datos_asignaturas (semestre_descripcion,semestre_fecha_inicio,semestre_fecha_fin,semestre_resumido,id_semestre,id_paralelo,paralelo_num_creditos,numero_paralelo,id_materia,materia_sigla,materia_nombre,id_carrera,carrera_nombre,departamento_materia,num_alumnos_inscritos,id_docente,ap_paterno_docente,ap_materno_docente,nombres_docente,ci_docente,sexo_docente,fecha_nacimiento_docente,celular_docente,email_ucb_docente,id_regional,nombre_regional,departamento_docente,codigo_curso_plantilla,codigo_curso_paralelo,usuario_registro) 
+    VALUES `;
     const sqlUpdateAsignaturas = `UPDATE Datos_asignaturas SET id_docente=?, ap_paterno_docente=?, ap_materno_docente=?, nombres_docente=?, ci_docente=?,
     sexo_docente=?, fecha_nacimiento_docente=?, celular_docente=?, email_ucb_docente=?, id_regional=?, nombre_regional=?, departamento_docente=?, docente_nuevo=?, usuario_registro=? WHERE id_paralelo = ?`;
+    let valuesIsert = "";
+    const listAnt = await listDatosAnt(datos);
     for (let i = 0; i < datos.length; i++) {
-        const resultDatoAsignatura = await consulta(sqlParalelosPorId, [datos[i].id_paralelo]);
-        if (resultDatoAsignatura.ok) {
-            if (resultDatoAsignatura.data.length == 0) {
-                const respInsert = await consulta(sqlInsertAsignaturas, transformarDatosAsignatura(datos[i], user));
-                contInsert = respInsert.ok ? contInsert + 1 : contErrorInsert + 1;
-            } else {
-                if (datos[i].id_docente != resultDatoAsignatura.data[0].id_docente) {
-                    const respUpdate = await consulta(sqlUpdateAsignaturas, transformarDatosAsignaturaUpdate(datos[i], user))
-                    contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
-                }
+        existeDato = listAnt.find(a => a.id_paralelo == datos[i].id_paralelo);
+        if (existeDato === undefined) {
+            valuesIsert = valuesIsert + valoresAsignatura(datos[i], user);
+        } else {
+            if (datos[i].id_docente != existeDato.id_docente) {
+                const respUpdate = await consulta(sqlUpdateAsignaturas, transformarDatosAsignaturaUpdate(datos[i], user))
+                contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
             }
         }
     }
+    const valuesi = valuesIsert.substring(0, valuesIsert.length - 1) + ";";
+    if (valuesi.length > 1) {
+        const valuesInsert = sqlInsertAsignaturas + valuesi;
+        insert = await consulta(valuesInsert, []);
+    }
     return success({
-        contInsert,
-        contErrorInsert,
+        insert: insert,
         contUpdate,
         contErroUpdate
     });
@@ -79,6 +82,18 @@ registrarInscripcionesPregrado = async(datos, user) => {
     }
 }
 
+const listDatosAnt = async(lista) => {
+    let paralelos = "";
+    lista.map(a => {
+        paralelos = paralelos + a.id_paralelo + ",";
+
+    });
+    const datos = paralelos.substring(0, paralelos.length - 1);
+    const sqlDatos = `SELECT * FROM Datos_asignaturas WHERE id_paralelo in (${datos})`;
+    const result = await consulta(sqlDatos, []);
+    return result.ok ? result.data : [];
+}
+
 transformarDatosAsignatura = (a, user) => {
     return [
         a.semestre_descripcion.toLowerCase() === 'null' ? JSON.parse(a.semestre_descripcion) : a.semestre_descripcion,
@@ -102,30 +117,36 @@ transformarDatosAsignatura = (a, user) => {
         a.nombres_docente,
         a.ci_docente,
         a.sexo_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.sexo_docente) : a.sexo_docente,
-        a.fecha_nacimiento_docente.toLowerCase() === 'null' ? JSON.parse(a.fecha_nacimiento_docente) : a.fecha_nacimiento_docente,
+        a.fecha_nacimiento_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.fecha_nacimiento_docente) : a.fecha_nacimiento_docente,
         a.celular_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.celular_docente) : a.celular_docente,
         a.email_ucb_docente.toLowerCase() === 'null' ? JSON.parse(a.email_ucb_docente) : a.email_ucb_docente,
         a.id_regional.toString().toLowerCase() === 'null' ? JSON.parse(a.id_regional) : a.id_regional,
         a.nombre_regional,
         a.departamento_docente.toLowerCase() === 'null' ? JSON.parse(a.departamento_docente) : a.departamento_docente,
+        `${a.id_regional}.${a.id_materia}.${a.id_docente}`,
+        `${a.id_regional}.${a.id_paralelo}`,
         user,
     ];
+}
+
+const valoresAsignatura = (a, user) => {
+        return `(${a.semestre_descripcion === undefined ? null : `'${a.semestre_descripcion}'`},'${formatoFecha(a.semestre_fecha_inicio, 'YYYY-MM-DD')}','${formatoFecha(a.semestre_fecha_fin, 'YYYY-MM-DD')}','${a.semestre_resumido}',${a.id_semestre === undefined ? null : `'${a.id_semestre}'`},${a.id_paralelo},${a.paralelo_num_creditos === undefined ? null : a.paralelo_num_creditos},${a.numero_paralelo},${a.id_materia},'${a.materia_sigla}','${a.materia_nombre}',${a.id_carrera === undefined ? null : a.id_carrera},${a.carrera_nombre === undefined ? null : `'${a.carrera_nombre}'`},${a.departamento_materia === undefined ? null : `'${a.departamento_materia}'`},${a.num_alumnos_inscritos === undefined ? null : `'${a.num_alumnos_inscritos}'`},${a.id_docente},${a.ap_paterno_docente === undefined ? null : `'${a.ap_paterno_docente}'`},${a.ap_materno_docente === undefined ? null : `'${a.ap_materno_docente}'`},'${a.nombres_docente}','${a.ci_docente}',${a.sexo_docente === undefined ? null : a.sexo_docente},${a.fecha_nacimiento_docente === undefined ? null : `'${formatoFecha(a.fecha_nacimiento_docente, 'YYYY-MM-DD')}'`},${a.celular_docente === undefined ? null : `'${a.celular_docente}'`},${a.email_ucb_docente === undefined ? null : `'${a.email_ucb_docente}'`},${a.id_regional === undefined ? null : a.id_regional},'${a.nombre_regional}',${a.departamento_docente === undefined ? null : `'${a.departamento_docente}'`},'${a.id_regional}.${a.id_materia}.${a.id_docente}','${a.id_regional}.${a.id_paralelo}','${user}'),`;
 }
 
 transformarDatosAsignaturaUpdate = (a, user) => {
     return [
         a.id_docente,
-        a.ap_paterno_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.ap_paterno_docente) : a.ap_paterno_docente,
-        a.ap_materno_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.ap_materno_docente) : a.ap_materno_docente,
+        a.ap_paterno_docente === undefined ? null : a.ap_paterno_docente,
+        a.ap_materno_docente === undefined ? null : a.ap_materno_docente,
         a.nombres_docente,
         a.ci_docente,
-        a.sexo_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.sexo_docente) : a.sexo_docente,
-        a.fecha_nacimiento_docente.toLowerCase() === 'null' ? JSON.parse(a.fecha_nacimiento_docente) : a.fecha_nacimiento_docente,
-        a.celular_docente.toString().toLowerCase() === 'null' ? JSON.parse(a.celular_docente) : a.celular_docente,
-        a.email_ucb_docente.toLowerCase() === 'null' ? JSON.parse(a.email_ucb_docente) : a.email_ucb_docente,
-        a.id_regional.toString().toLowerCase() === 'null' ? JSON.parse(a.id_regional) : a.id_regional,
+        a.sexo_docente === undefined ? null : a.sexo_docente,
+        a.fecha_nacimiento_docente === undefined ? null : formatoFecha(a.fecha_nacimiento_docente, 'YYYY-MM-DD'),
+        a.celular_docente === undefined ? null : a.celular_docente,
+        a.email_ucb_docente === undefined ? null : a.email_ucb_docente,
+        a.id_regional === undefined ? null : a.id_regional,
         a.nombre_regional,
-        a.departamento_docente.toLowerCase() === 'null' ? JSON.parse(a.departamento_docente) : a.departamento_docente,
+        a.departamento_docente === undefined ? null : a.departamento_docente,
         1,
         user,
         a.id_paralelo
@@ -133,28 +154,28 @@ transformarDatosAsignaturaUpdate = (a, user) => {
 }
 
 transformarDatosInscripcion = (i, user) => {
-        return `(
+    return `(
         '${formatoFecha(i.fecha_registro_est, 'YYYY-MM-DD HH:mm:ss')}',
-        ${i.movimiento.toString().toLowerCase() === 'null' ? JSON.parse(i.movimiento) : i.movimiento},
-        ${i.id_regional.toString().toLowerCase() === 'null' ? JSON.parse(i.id_regional) : i.id_regional},
+        ${i.movimiento === undefined ? null : i.movimiento},
+        ${i.id_regional === undefined ? null : i.id_regional},
         '${i.nombre_regional}',
         ${i.id_semestre},
         ${i.id_paralelo},
-        ${i.id_materia.toString().toLowerCase() === 'null' ? JSON.parse(i.id_materia) : i.id_materia},
+        ${i.id_materia === undefined ? null : i.id_materia},
         '${i.sigla_materia}',
         '${i.nombre_materia}',
         '${i.numero_paralelo}',
-        ${i.id_carrera.toString().toLowerCase() === 'null' ? JSON.parse(i.id_carrera) : i.id_carrera},
-        ${i.carrera.toString().toLowerCase() === 'null' ? JSON.parse(i.id_carrera) : i.id_carrera},
+        ${i.id_carrera === undefined ? null : i.id_carrera},
+        ${i.carrera === undefined ? null : i.id_carrera},
         '${i.doc_identidad_est}',
         '${i.nombres_est}',
-        ${i.ap_paterno_est.toString().toLowerCase() === 'null' ? JSON.parse(i.ap_paterno_est) : `'${i.ap_paterno_est}'`},
-        ${i.ap_materno_est.toString().toLowerCase() === 'null' ? JSON.parse(i.ap_materno_est) : `'${i.ap_materno_est}'`},
-        ${i.fecha_nacimiento_est.toString().toLowerCase() === 'null' ? JSON.parse(i.fecha_nacimiento_est) : `'${formatoFecha(i.fecha_nacimiento_est, 'YYYY-MM-DD')}'`},
-        ${i.sexo_est.toString().toLowerCase() === 'null' ? JSON.parse(i.sexo_est) : i.sexo_est},
-        ${i.celular_est.toString().toLowerCase() === 'null' ? JSON.parse(i.celular_est) : `'${i.celular_est}'`},
+        ${i.ap_paterno_est === undefined ? null : `'${i.ap_paterno_est}'`},
+        ${i.ap_materno_est === undefined ? null : `'${i.ap_materno_est}'`},
+        ${i.fecha_nacimiento_est === undefined ? null : `'${formatoFecha(i.fecha_nacimiento_est, 'YYYY-MM-DD')}'`},
+        ${i.sexo_est === undefined ? null : i.sexo_est},
+        ${i.celular_est === undefined ? null : `'${i.celular_est}'`},
         ${i.id_persona_est},
-        ${i.email_ucb_est.toString().toLowerCase() === 'null' ? JSON.parse(i.email_ucb_est) : `'${i.email_ucb_est}'`},
+        ${i.email_ucb_est === undefined ? null : `'${i.email_ucb_est}'`},
         '${user}'
     ),`;
 }

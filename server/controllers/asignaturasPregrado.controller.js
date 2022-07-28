@@ -4,27 +4,53 @@ const fs = require('fs');
 const { request, response } = require('express');
 const fetch = (...args) =>
     import ('node-fetch').then(({ default: fetch }) => fetch(...args));
-const { consulta } = require('./querys.controller');
+const { consulta, peticionApiNeo } = require('./querys.controller');
 const { error, success } = require('./respuestas.controller');
-const { formatoFecha, transformarNomRegional, formatoFechaNeo, otroFormatoFecha } = require('../tools/util.tools');
+const {
+    formatoFecha,
+    transformarNomRegional,
+    formatoFechaNeo,
+    otroFormatoFecha,
+    delay
+} = require('../tools/util.tools');
 
-const generarCsvPlantillas = async(req = request, res = response) => {
+const crearPlantillasPregrado = async(req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
-    const id_semestre = req.query.id_semestre;
+    const { id_semestre, id_regional } = req.body;
     const llaves = await llavesPorUsuario(id_usuario);
     if (!llaves.ok) {
-        return res.status(500).json(llaves)
+        return res.status(500).json(llaves);
     }
-    const datosAsignaturas = await listaAsignaturasPorSemeste(id_semestre);
+    const datosAsignaturas = await listaAsignaturasPorSemeste(id_semestre, id_regional);
     if (!datosAsignaturas.ok) {
-        return res.status(500).json(datosAsignaturas)
+        return res.status(500).json(datosAsignaturas);
     }
-    const ruta = generarPlantillas(datosAsignaturas.data, req.get('host'), id_semestre, user);
-    if (!ruta.ok) {
-        return res.status(500).json(ruta);
+    const datosPlantillas = await plantillaPorRegional(id_regional);
+    if (!datosPlantillas.ok) {
+        return res.status(500).json(datosPlantillas);
     }
-    res.json(ruta);
+    const sinDuplicados = datosPantillasPregrado(datosAsignaturas.data);
+    const plantillasACrear = quitarPlantillasExistentes(sinDuplicados, datosPlantillas.data);
+    const respCreacion = await crearPlantillas(plantillasACrear, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const crearParalelosPregrado = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const datosAsignaturas = await listaAsignaturasPorSemestrePlantilla(id_semestre, id_regional);
+    if (!datosAsignaturas.ok) {
+        return res.status(500).json(datosAsignaturas);
+    }
+    const listParalelos = datosParalelosPregrado(datosAsignaturas.data);
+    const respCreacion = await crearParalelos(listParalelos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
 }
 
 const llavesPorUsuario = async(id_usuario) => {
@@ -48,60 +74,213 @@ const llavesPorUsuario = async(id_usuario) => {
     return success(resultLlaves.data);
 }
 
-const listaAsignaturasPorSemeste = async(id_semestre) => {
-    const sqlAsignaturasPorSemestre = `select *
-    from Datos_asignaturas
-    where id_semestre = ?`;
-    const resultAsignaturas = await consulta(sqlAsignaturasPorSemestre, [id_semestre]);
+const listaAsignaturasPorSemeste = async(id_semestre, id_regional) => {
+    const sqlAsignaturasPorSemestre = `select da.*, u.id_usuario, u.email_institucional, o.id_organizacion, o.nombre as nom_regional
+    from Datos_asignaturas da, Organizaciones o, Usuarios u
+    where da.id_regional = o.id_regional
+		and u.email_institucional = da.email_ucb_docente
+    and da.paralelo_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultAsignaturas = await consulta(sqlAsignaturasPorSemestre, [id_semestre, id_regional]);
     return resultAsignaturas;
 }
 
-generarPlantillas = (lista, host, user, id_semestre) => {
-    let plantillas = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15\nnombre,fecha_inicio,fecha_fin,creditos,semestre,curse_code,idioma,zona_horaria,mostrar_catalogo,categoria_catalogo,plantilla,inscribirse,dar_baja,desactivados,organizacion\n";
-    for (let i = 0; i < lista.length; i++) {
-        if (lista[i].paralelo_nuevo) {
-            if (!plantillas.includes(generarDatosPlantillaNeo(lista[i]))) {
-                plantillas = plantillas + generarDatosPlantillaNeo(lista[i]) + "\n";
-            }
-        }
-    }
-    try {
-        const date = new Date();
-        const archivo = `plantillas/p${otroFormatoFecha(date, 'DD-MM-YYYY-HH-mm-ss')}-${user}-${id_semestre}.csv`;
-        fs.writeFileSync(`csv/${archivo}`, plantillas);
-        const ruta = `${host}/csv/${archivo}`;
-        return success({
-            msg: "Generacion de plantillas CSV",
-            ruta
-        });
-    } catch (err) {
-        console.log(err);
-        return error({
-            msg: "Error al crear el archivo CSV",
-            error: err
-        });
-    }
+const listaAsignaturasPorSemestrePlantilla = async(id_semestre, id_regional) => {
+    const sqlAsignaturasPorSemestre = `select da.*, p.id_plantilla, o.id_organizacion, o.nombre as nom_regional
+    from Datos_asignaturas da, Organizaciones o, Plantillas p
+    where da.id_regional = o.id_regional
+	and p.codigo_curso = da.codigo_curso_plantilla
+    and da.paralelo_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultAsignaturas = await consulta(sqlAsignaturasPorSemestre, [id_semestre, id_regional]);
+    return resultAsignaturas;
 }
 
-generarDatosPlantillaNeo = (p) => {
-    nombre = `Plantilla: ${p.materia_sigla} ${p.materia_nombre.replace(/,/g, '')}`;
-    fecha_inicio = formatoFechaNeo(p.semestre_fecha_inicio);
-    fecha_fin = formatoFechaNeo(p.semestres_fecha_fin);
-    creditos = p.paralelo_num_creditos;
-    semestre = p.semestre_resumido;
-    codigo_curso = `${p.id_regional}.${p.id_materia}.${p.id_docente}`;
-    idioma = 'Español';
-    zona_horaria = 'La Paz';
-    mostrar_catalogo = true;
-    categoria_catalogo = p.carrera_nombre != null ? p.carrera_nombre.replace(/,/g, '') : '';
-    plantilla = true;
-    inscribirse = false;
-    dar_baja = false;
-    desactivados = false;
-    organizacion = transformarNomRegional(p.nombre_regional);
-    return `${nombre},${fecha_inicio},${fecha_fin},${creditos},${semestre},${codigo_curso},${idioma},${zona_horaria},${mostrar_catalogo},${categoria_catalogo},${plantilla},${inscribirse},${dar_baja},${desactivados},${organizacion}`;
+const datosPantillasPregrado = (lista) => {
+    let plantillas = [];
+    for (let i = 0; i < lista.length; i++) {
+        const p = {
+            nombre: `Plantilla ${lista[i].materia_sigla} ${lista[i].materia_nombre}`,
+            fecha_inicio: otroFormatoFecha(lista[i].semestre_fecha_inicio, 'MM/DD/YYYY'),
+            fecha_fin: otroFormatoFecha(lista[i].semestre_fecha_fin, 'MM/DD/YYYY'),
+            fecha_inicio_or: lista[i].semestre_fecha_inicio,
+            fecha_fin_or: lista[i].semestre_fecha_fin,
+            creditos: lista[i].paralelo_num_creditos,
+            semestre: lista[i].semestre_resumido,
+            codigo_curso: `${lista[i].id_regional}.${lista[i].id_materia}.${lista[i].id_docente}`,
+            lenguaje: 'Español',
+            zona_horaria: 'La Paz',
+            mostrar_catalogo: true,
+            id_organizacion: lista[i].id_organizacion,
+            organizacion: lista[i].nom_regional,
+            id_usuario: lista[i].id_usuario,
+            email_ucb_docente: lista[i].email_institucional
+        }
+        plantillas.push(p)
+    }
+    let hash = {};
+    plantillas = plantillas.filter(o => hash[o.codigo_curso] ? false : hash[o.codigo_curso] = true);
+    return plantillas;
+}
+
+const plantillaPorRegional = async(id_regional) => {
+    const sqlPlantillasPorRegional = "select p.* from Plantillas p, Organizaciones o where p.id_organizacion = o.id_organizacion and o.id_regional = ?";
+    const result = await consulta(sqlPlantillasPorRegional, [id_regional]);
+    return result;
+}
+
+const quitarPlantillasExistentes = (list1, list2) => {
+    plantillasFaltantes = []
+    list1.map((p) => {
+        const existe = list2.find(e => e.codigo_curso === p.codigo_curso);
+        if (existe == undefined) plantillasFaltantes.push(p);
+    });
+    return plantillasFaltantes;
+}
+
+const crearPlantillas = async(plist, url, api_key, user) => {
+    let datosRes = {
+        totales: {
+            plantillas_creadas_neo: 0,
+            insert_plantillas_db: 0,
+            docente_plantilla_neo: 0,
+            error_creacion_plantillas_neo: 0,
+            error_insert_plantillas_db: 0,
+            error_docente_plantilla_neo: 0,
+        },
+        datos_respuestas: []
+    };
+    for (let i = 0; i < plist.length; i++) {
+        const parametros = `&name=${plist[i].nombre}&start_at=${plist[i].fecha_inicio}&finish_at=${plist[i].fecha_fin}&credits=${plist[i].creditos}&semester=${plist[i].semestre}&course_code=${plist[i].codigo_curso}&language=${plist[i].lenguaje}&time_zone=${plist[i].zona_horaria}&display_in_catalog=${plist[i].mostrar_catalogo}&organization_id=${plist[i].id_organizacion}`;
+        const resPlantilla = await peticionApiNeo(url, 'add_class_template', api_key, parametros);
+        if (resPlantilla.ok) {
+            datosRes.totales.plantillas_creadas_neo = datosRes.totales.plantillas_creadas_neo + 1;
+            const insertp = await insertPlantilla(resPlantilla.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_organizacion, plist[i].organizacion, user);
+            if (!insertp.ok) {
+                datosRes.totales.error_insert_plantillas_db = datosRes.totales.error_insert_plantillas_db + 1;
+                datosRes.datos_respuestas.push({
+                    tipo: "Creacion en db auxiliar",
+                    datos: [resPlantilla.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_organizacion, plist[i].organizacion, user].toString(),
+                    respuesta: insertp
+                });
+            } else {
+                datosRes.totales.insert_plantillas_db = datosRes.totales.insert_plantillas_db + 1;
+            }
+
+            const parametrosPlantilla = `&class_id=${resPlantilla.data.id}&user_ids[]=${plist[i].id_usuario}`;
+            const respDocP = await peticionApiNeo(url, 'add_teachers_to_class', api_key, parametrosPlantilla);
+            if (respDocP.ok) {
+                datosRes.totales.docente_plantilla_neo++;
+            } else {
+                datosRes.totales.error_docente_plantilla_neo++;
+                datosRes.datos_respuestas.push({
+                    tipo: "Creacion en NEO",
+                    datos: parametrosPlantilla,
+                    respuesta: respDocP
+                });
+            }
+
+        } else {
+            datosRes.totales.error_creacion_plantillas_neo++;
+            datosRes.datos_respuestas.push({
+                tipo: "Creacion en NEO",
+                datos: parametros,
+                respuesta: resPlantilla
+            });
+        }
+        await delay(100)
+    }
+    return datosRes;
+}
+
+const insertPlantilla = async(id_plantilla, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_organizacion, organizacion, user) => {
+    const sqlInsert = `INSERT INTO Plantillas (id_plantilla, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_organizacion, organizacion, usuario_registro) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const result = await consulta(sqlInsert, [id_plantilla, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_organizacion, organizacion, user]);
+    return result;
+}
+
+const insertParalelo = async(id_curso, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_plantilla, id_organizacion, organizacion, usuario_registro) => {
+    const sqlInsert = `INSERT INTO Cursos (id_curso, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_plantilla, id_organizacion, organizacion, usuario_registro) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const result = await consulta(sqlInsert, [id_curso, nombre, fecha_inicio, fecha_fin, creditos, semestre, codigo_curso, id_plantilla, id_organizacion, organizacion, usuario_registro]);
+    return result;
+}
+
+const updateParalelo = async(id_paralelo) => {
+    const sqlUpdate = `UPDATE Datos_asignaturas SET paralelo_nuevo = 0 WHERE id_paralelo = ?`;
+    const result = await consulta(sqlUpdate, [id_paralelo]);
+    return result;
+}
+
+const datosParalelosPregrado = (lista) => {
+    let paralelos = [];
+    for (let i = 0; i < lista.length; i++) {
+        const p = {
+            nombre: `[${lista[i].semestre_resumido}] ${lista[i].materia_sigla} ${lista[i].materia_nombre} [Par.${lista[i].numero_paralelo}]`,
+            fecha_inicio: otroFormatoFecha(lista[i].semestre_fecha_inicio, 'MM/DD/YYYY'),
+            fecha_fin: otroFormatoFecha(lista[i].semestre_fecha_fin, 'MM/DD/YYYY'),
+            fecha_inicio_or: lista[i].semestre_fecha_inicio,
+            fecha_fin_or: lista[i].semestre_fecha_fin,
+            creditos: lista[i].paralelo_num_creditos,
+            semestre: lista[i].semestre_resumido,
+            codigo_curso: `${lista[i].id_regional}.${lista[i].id_paralelo}`,
+            lenguaje: 'Español',
+            zona_horaria: 'La Paz',
+            mostrar_catalogo: true,
+            id_plantilla: lista[i].id_plantilla,
+            id_organizacion: lista[i].id_organizacion,
+            organizacion: lista[i].nom_regional,
+            id_paralelo: lista[i].id_paralelo
+        }
+        paralelos.push(p)
+    }
+    return paralelos;
+}
+
+const crearParalelos = async(plist, url, api_key, user) => {
+    let datosRes = {
+        totales: {
+            paralelos_creados_neo: 0,
+            insert_paralelos_db: 0,
+            error_creacion_paralelos_neo: 0,
+            error_insert_paralelos_db: 0,
+        },
+        datos_respuestas: []
+    };
+    for (let i = 0; i < plist.length; i++) {
+        const parametros = `&name=${plist[i].nombre}&start_at=${plist[i].fecha_inicio}&finish_at=${plist[i].fecha_fin}&credits=${plist[i].creditos}&semester=${plist[i].semestre}&course_code=${plist[i].codigo_curso}&language=${plist[i].lenguaje}&time_zone=${plist[i].zona_horaria}&display_in_catalog=${plist[i].mostrar_catalogo}&parent_id=${plist[i].id_plantilla}&organization_id=${plist[i].id_organizacion}`;
+        const resParalelos = await peticionApiNeo(url, 'add_class', api_key, parametros);
+        if (resParalelos.ok) {
+            datosRes.totales.paralelos_creados_neo = datosRes.totales.paralelos_creados_neo + 1;
+            const updatep = await updateParalelo(plist[i].id_paralelo);
+            const insertp = await insertParalelo(resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user);
+            if (!insertp.ok) {
+                datosRes.totales.error_insert_paralelos_db = datosRes.totales.error_insert_paralelos_db + 1;
+                datosRes.datos_respuestas.push({
+                    tipo: "Creacion en db auxiliar",
+                    datos: [resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user].toString(),
+                    respuesta: insertp
+                });
+            } else {
+                datosRes.totales.insert_paralelos_db = datosRes.totales.insert_paralelos_db + 1;
+            }
+        } else {
+            datosRes.totales.error_creacion_paralelos_neo++;
+            datosRes.datos_respuestas.push({
+                tipo: "Creacion en NEO",
+                datos: parametros,
+                respuesta: resParalelos
+            });
+        }
+        await delay(100)
+    }
+    return datosRes;
 }
 
 module.exports = {
-    generarCsvPlantillas
+    crearPlantillasPregrado,
+    crearParalelosPregrado
 }

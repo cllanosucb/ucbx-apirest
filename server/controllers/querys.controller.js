@@ -32,7 +32,21 @@ const peticionNeo = async(metodo, parametros) => {
     }
 }
 
+const peticionApiNeo = async(url, metodo, api_key, parametros) => {
+    try {
+        const respAPI = await fetch(`${url}/${metodo}?api_key=${api_key}${parametros}`);
+        const data = await respAPI.json();
+        return success(data);
+    } catch (err) {
+        return error({
+            msg: "Error interno del servidor",
+            error: err
+        });
+    }
+}
+
 module.exports = {
     consulta,
-    peticionNeo
+    peticionNeo,
+    peticionApiNeo
 };

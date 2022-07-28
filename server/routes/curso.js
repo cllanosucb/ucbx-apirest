@@ -12,7 +12,8 @@ const {
     validarCamposArrayCursos
 } = require('../middlewares/validar.campos.middleware');
 const {
-    generarCsvPlantillas
+    crearPlantillasPregrado,
+    crearParalelosPregrado
 } = require('../controllers/asignaturasPregrado.controller')
 
 app.get('/buscar', verificarToken, buscarCurso);
@@ -21,6 +22,8 @@ app.get('/lista', verificarToken, listaCursos);
 
 app.post('/guardar', verificarToken, validarCamposArrayCursos, guardarCurso);
 
-app.post('/generar/plantillasCsvPregrado', verificarToken, generarCsvPlantillas);
+app.post('/crearPlantillasPregrado', verificarToken, crearPlantillasPregrado);
+
+app.post('/crearParalelosPregrado', verificarToken, crearParalelosPregrado);
 
 module.exports = app;

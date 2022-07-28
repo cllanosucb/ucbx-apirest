@@ -38,9 +38,21 @@ const transformarNomRegional = (nomReginal) => {
     }
 }
 
+delay = (n) => {
+    return new Promise(function(resolve) {
+        setTimeout(resolve, n);
+    });
+}
+
+capitalizar = (text) => {
+    return text[0].toUpperCase() + text.toLowerCase().slice(1);
+}
+
 module.exports = {
     formatoFecha,
     transformarNomRegional,
     formatoFechaNeo,
-    otroFormatoFecha
+    otroFormatoFecha,
+    delay,
+    capitalizar
 }

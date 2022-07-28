@@ -60,7 +60,9 @@ cargarDatos = async(ruta, user) => {
         msg: "Resultado de la creacion de registros",
         data: {
             asignaturas: respInsertAsignaturas.data,
-            inscripciones: respInsertInscripciones.ok ? respInsertInscripciones.data : respInsertInscripciones.error
+            inscripciones: JSON.stringify(respInsertInscripciones, (key, value) =>
+                typeof value === "bigint" ? value.toString() + "" : value
+            )
         }
     });
 }

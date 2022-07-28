@@ -10,6 +10,7 @@ app.use('/modulos', require('./modulos'));
 app.use('/tareas', require('./tarea'));
 app.use('/calificaciones', require('./calificacion'));
 app.use('/subir', require('./upload'));
+app.use('/semestres', require('./semestres'));
 app.use('/retiros', require('./retiros'));
 
 module.exports = app;
