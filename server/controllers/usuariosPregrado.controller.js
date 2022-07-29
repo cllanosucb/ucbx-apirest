@@ -263,7 +263,115 @@ const asignarDocentesParalelos = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
+const crearEstudiantesPregrado = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const estSinCuenta = await listaEstSinCuentaNeo(id_semestre, id_regional);
+    console.log(estSinCuenta);
+    if (!estSinCuenta.ok) {
+        return res.status(500).json(estSinCuenta);
+    }
+    const listE = quitarDuplicadosEst(estSinCuenta.data);
+    console.log("Estudiantes a crear", listE.length);
+
+    const respCreacion = await crearEstudiantes(listE, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaEstSinCuentaNeo = async(id_semestre, id_regional) => {
+    const sqlDocentesPorSemestre = `select di.*, o.id_organizacion, o.nombre
+    FROM
+    (
+    select DISTINCT id_persona_est, email_ucb_est
+    from Datos_inscripciones
+    where id_regional = ?
+    and id_semestre = ?
+    and inscripcion_nueva = 1
+    ) est
+    LEFT JOIN Usuarios as u on u.email_institucional = est.email_ucb_est,
+    Datos_inscripciones di, Organizaciones o
+    where u.id_usuario is null
+    and est.id_persona_est = di.id_persona_est
+    and di.id_regional = o.id_regional`;
+    const resultDocentes = await consulta(sqlDocentesPorSemestre, [id_regional, id_semestre]);
+    return resultDocentes;
+}
+
+const quitarDuplicadosEst = (lista) => {
+    let estudiantes = [];
+    for (let i = 0; i < lista.length; i++) {
+        const d = {
+            nombre: capitalizar(lista[i].nombres_est),
+            primer_ap: `${lista[i].ap_paterno_est != null ? capitalizar(lista[i].ap_paterno_est) : ''} ${lista[i].ap_materno_est != null ? capitalizar(lista[i].ap_materno_est) : ''}`,
+            userid: lista[i].email_ucb_est.toLowerCase().split('@')[0],
+            contrasenia: `${lista[i].email_ucb_est.toLowerCase().split('@')[0]}@${lista[i].doc_identidad_est}`,
+            fecha_nac: lista[i].fecha_nacimiento_est != null ? otroFormatoFecha(lista[i].fecha_nacimiento_est, 'MM/DD/YYYY') : null,
+            fecha_nac_or: lista[i].fecha_nacimiento_est != null ? lista[i].fecha_nacimiento_est : null,
+            ci: `${lista[i].id_regional}${lista[i].doc_identidad_est}`,
+            sexo: lista[i].sexo_est == 1 ? 'Male' : 'Female',
+            carrera_usuario: lista[i].carrera != null ? lista[i].carrera : null,
+            registro_ucb: `${lista[i].id_regional}${lista[i].id_persona_est}`,
+            email_institucional: lista[i].email_ucb_est.toLowerCase(),
+            telefono: lista[i].celular_est != null ? lista[i].celular_est : null,
+            pais: 'Bolivia',
+            id_organizacion: lista[i].id_organizacion,
+            tipo_cuenta: 'student',
+            archivado: false,
+        }
+        docentes.push(d);
+    }
+    let hash = {};
+    lista = lista.filter(e => hash[e.id_persona_est] ? false : hash[e.id_persona_est] = true);
+    return lista;
+}
+
+const crearEstudiantes = async(plist, url, api_key, user) => {
+    let datosRes = {
+        msg: "Registro de estudiantes",
+        totales: {
+            usuarios_creadas_neo: 0,
+            insert_usuarios_db: 0,
+            error_usuarios_creadas_neo: 0,
+            error_insert_usuarios_db: 0,
+        },
+        datos_respuestas: []
+    };
+    for (let i = 0; i < plist.length; i++) {
+        const parametros = `&first_name=${plist[i].nombre}&last_name=${plist[i].primer_ap}&userid=${plist[i].userid}&password=${plist[i].contrasenia}&organization_id=${plist[i].id_organizacion}&birthdate=${plist[i].fecha_nac}&teacher_id=${plist[i].ci}&gender=${plist[i].sexo}&departamento=${plist[i].carrera_usuario}&registro ucb=${plist[i].registro_ucb}&email=${plist[i].email_institucional}&phone=${plist[i].telefono}&country=${plist[i].pais}&archived=${plist[i].archivado}&account_types=${plist[i].tipo_cuenta}`;
+        const resUsuario = await peticionApiNeo(url, 'add_user', api_key, parametros);
+        if (resUsuario.ok) {
+            datosRes.totales.usuarios_creadas_neo = datosRes.totales.usuarios_creadas_neo + 1;
+            const insertp = await insertUsuario(resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user);
+            if (!insertp.ok) {
+                datosRes.totales.error_insert_usuarios_db = datosRes.totales.error_insert_usuarios_db + 1;
+                datosRes.datos_respuestas.push({
+                    tipo: "Creacion en db auxiliar",
+                    datos: [resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user].toString(),
+                    respuesta: insertp
+                });
+            } else {
+                datosRes.totales.insert_usuarios_db = datosRes.totales.insert_usuarios_db + 1;
+            }
+        } else {
+            datosRes.totales.error_usuarios_creadas_neo++;
+            datosRes.datos_respuestas.push({
+                tipo: "Creacion en NEO",
+                datos: parametros,
+                respuesta: resUsuario
+            });
+        }
+        //await delay(100)
+    }
+    return datosRes;
+}
+
 module.exports = {
     crearDocentesPregrado,
-    asignarParalelosDocentesPregrado
+    asignarParalelosDocentesPregrado,
+    crearEstudiantesPregrado
 }

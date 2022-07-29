@@ -44,7 +44,7 @@ registrarAsignaturasPregrado = async(datos, user) => {
 
 registrarInscripcionesPregrado = async(datos, user) => {
     let contInsert = datos.length;
-    const sqlInsertInscripciones = "INSERT INTO Datos_inscripciones (fecha_registro_est, movimiento, id_regional, nombre_regional, id_semestre, id_paralelo, id_materia, sigla_materia, nombre_materia, numero_paralelo, id_carrera, carrera, doc_identidad_est, nombres_est, ap_paterno_est, ap_materno_est, fecha_nacimiento_est, sexo_est, celular_est, id_persona_est, email_ucb_est, usuario_registro) VALUES";
+    const sqlInsertInscripciones = "INSERT INTO Datos_inscripciones (fecha_registro_est, estado_movimiento, movimiento, id_regional, nombre_regional, id_semestre, id_paralelo, id_materia, sigla_materia, nombre_materia, numero_paralelo, id_carrera, carrera, doc_identidad_est, nombres_est, ap_paterno_est, ap_materno_est, fecha_nacimiento_est, sexo_est, celular_est, id_persona_est, email_ucb_est, codigo_curso_paralelo, usuario_registro) VALUES ";
     let valuesInscripciones = "";
     for (let i = 0; i < datos.length; i++) {
         let value = transformarDatosInscripcion(datos[i], user);
@@ -152,7 +152,8 @@ transformarDatosAsignaturaUpdate = (a, user) => {
 transformarDatosInscripcion = (i, user) => {
     return `(
         '${formatoFecha(i.fecha_registro_est, 'YYYY-MM-DD HH:mm:ss')}',
-        ${i.movimiento === undefined ? null : i.movimiento},
+        ${i.estado_movimiento === undefined ? null : i.estado_movimiento},
+        ${i.movimiento === undefined ? null : `'${i.movimiento}'`},
         ${i.id_regional === undefined ? null : i.id_regional},
         '${i.nombre_regional}',
         ${i.id_semestre},
@@ -162,8 +163,8 @@ transformarDatosInscripcion = (i, user) => {
         '${i.nombre_materia}',
         '${i.numero_paralelo}',
         ${i.id_carrera === undefined ? null : i.id_carrera},
-        ${i.carrera === undefined ? null : i.id_carrera},
-        '${i.doc_identidad_est}',
+        ${i.carrera === undefined ? null : `'${i.carrera}'`},
+        '${i.doc_identidad_est === undefined ? null : i.doc_identidad_est}',
         '${i.nombres_est}',
         ${i.ap_paterno_est === undefined ? null : `'${i.ap_paterno_est}'`},
         ${i.ap_materno_est === undefined ? null : `'${i.ap_materno_est}'`},
@@ -172,6 +173,7 @@ transformarDatosInscripcion = (i, user) => {
         ${i.celular_est === undefined ? null : `'${i.celular_est}'`},
         ${i.id_persona_est},
         ${i.email_ucb_est === undefined ? null : `'${i.email_ucb_est}'`},
+        '${i.id_regional}.${i.id_paralelo}'
         '${user}'
     ),`;
 }

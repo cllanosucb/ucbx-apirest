@@ -12,7 +12,8 @@ const {
 
 const {
     crearDocentesPregrado,
-    asignarParalelosDocentesPregrado
+    asignarParalelosDocentesPregrado,
+    crearEstudiantesPregrado
 } = require('../controllers/usuariosPregrado.controller');
 
 app.post('/registarporcursos', verificarToken, validarCamposListCursos, registrarUsuariosPorCurso);
@@ -24,5 +25,7 @@ app.get('/obtenerMenuPorUsuario', verificarToken, obtenerMenuPorUsuario);
 app.post('/crearDocentesPregrado', verificarToken, crearDocentesPregrado);
 
 app.post('/asignarParalelosDocentesPregrado', verificarToken, asignarParalelosDocentesPregrado);
+
+app.post('/crearEstudiantesPregrado', verificarToken, crearEstudiantesPregrado);
 
 module.exports = app;
