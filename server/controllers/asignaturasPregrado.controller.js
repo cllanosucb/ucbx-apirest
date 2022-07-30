@@ -30,6 +30,7 @@ const crearPlantillasPregrado = async(req = request, res = response) => {
     if (!datosPlantillas.ok) {
         return res.status(500).json(datosPlantillas);
     }
+    console.log("Plantillas", datosPlantillas.data.length);
     const sinDuplicados = datosPantillasPregrado(datosAsignaturas.data);
     const plantillasACrear = quitarPlantillasExistentes(sinDuplicados, datosPlantillas.data);
     const respCreacion = await crearPlantillas(plantillasACrear, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
@@ -48,6 +49,7 @@ const crearParalelosPregrado = async(req = request, res = response) => {
     if (!datosAsignaturas.ok) {
         return res.status(500).json(datosAsignaturas);
     }
+    console.log("Paralelos", datosAsignaturas.data.length);
     const listParalelos = datosParalelosPregrado(datosAsignaturas.data);
     const respCreacion = await crearParalelos(listParalelos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
     res.json(success(respCreacion));
@@ -255,6 +257,7 @@ const crearParalelos = async(plist, url, api_key, user) => {
         const resParalelos = await peticionApiNeo(url, 'add_class', api_key, parametros);
         if (resParalelos.ok) {
             datosRes.totales.paralelos_creados_neo = datosRes.totales.paralelos_creados_neo + 1;
+            const update = await updateParalelo(plist[i].id_paralelo)
             const insertp = await insertParalelo(resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user);
             if (!insertp.ok) {
                 datosRes.totales.error_insert_paralelos_db = datosRes.totales.error_insert_paralelos_db + 1;
