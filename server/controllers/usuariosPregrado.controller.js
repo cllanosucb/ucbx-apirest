@@ -12,7 +12,8 @@ const {
     formatoFechaNeo,
     otroFormatoFecha,
     delay,
-    capitalizar
+    capitalizar,
+    guardarCsv
 } = require('../tools/util.tools');
 
 const crearDocentesPregrado = async(req = request, res = response) => {
@@ -272,7 +273,7 @@ const crearEstudiantesPregrado = async(req = request, res = response) => {
         return res.status(500).json(llaves);
     }
     const estSinCuenta = await listaEstSinCuentaNeo(id_semestre, id_regional);
-    console.log(estSinCuenta);
+    //console.log(estSinCuenta);
     if (!estSinCuenta.ok) {
         return res.status(500).json(estSinCuenta);
     }
@@ -322,12 +323,13 @@ const quitarDuplicadosEst = (lista) => {
             id_organizacion: lista[i].id_organizacion,
             tipo_cuenta: 'student',
             archivado: false,
+            id_persona_est: lista[i].id_persona_est,
         }
-        docentes.push(d);
+        estudiantes.push(d);
     }
     let hash = {};
-    lista = lista.filter(e => hash[e.id_persona_est] ? false : hash[e.id_persona_est] = true);
-    return lista;
+    estudiantes = estudiantes.filter(e => hash[e.id_persona_est] ? false : hash[e.id_persona_est] = true);
+    return estudiantes;
 }
 
 const crearEstudiantes = async(plist, url, api_key, user) => {
@@ -355,7 +357,7 @@ const crearEstudiantes = async(plist, url, api_key, user) => {
                     respuesta: insertp
                 });
             } else {
-                datosRes.totales.insert_usuarios_db = datosRes.totales.insert_usuarios_db + 1;
+                datosRes.totales.error_insert_usuarios_db = datosRes.totales.error_insert_usuarios_db + 1;
             }
         } else {
             datosRes.totales.error_usuarios_creadas_neo++;
@@ -370,8 +372,302 @@ const crearEstudiantes = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
+const retirosEstudiantesPregrado = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const listRetiros = await listaEstRetiros(id_semestre, id_regional);
+    if (!listRetiros.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listRetiros, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    const cursos = listCursos(listRetiros.data);
+    const retirosPorCursos = unirDatosRetiros(cursos, listRetiros.data);
+    console.log("Cantidad de cursos de retiro", retirosPorCursos.length);
+    const respRetiros = await procesarRetiros(retirosPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    //actializar tabla de datos_inscripciones
+    const updateRetiros = await updateInscripciones(listRetiros.data);
+    res.json(success(respRetiros));
+    /* res.json(success(JSON.parse(JSON.stringify(retirosPorCursos, (key, value) =>
+        typeof value === "bigint" ? value.toString() + "" : value
+    )))) */
+}
+
+const listaEstRetiros = async(id_semestre, id_regional) => {
+    const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
+    FROM 
+    (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
+    di.sigla_materia,di.nombre_materia,di.numero_paralelo,di.id_persona_est,di.email_ucb_est,
+    di.inscripcion_nueva,di.codigo_curso_paralelo,di.codigo_inscripcion_est, count(di.codigo_inscripcion_est) cant_repetidos_retiros
+    FROM Datos_inscripciones di
+    WHERE di.estado_movimiento in (3,4,5)
+    and di.inscripcion_nueva = 1
+    and di.id_regional = ?
+    and di.id_semestre = ?
+    GROUP BY di.codigo_inscripcion_est
+    ) r, Cursos c, Usuarios u
+    where c.codigo_curso = r.codigo_curso_paralelo
+    and u.email_institucional = r.email_ucb_est`;
+    const resultRetiros = await consulta(sqlRetirosPorSemestre, [id_regional, id_semestre]);
+    return resultRetiros;
+}
+
+const listCursos = (arr) => {
+    let hash = {};
+    const array = arr.filter(o => hash[o.id_curso] ? false : hash[o.id_curso] = true);
+    return array;
+}
+
+const unirDatosRetiros = (cursos, retirosEst) => {
+    let datos = [];
+    for (let i = 0; i < cursos.length; i++) {
+        const estudiantes = retirosEst.filter(e => {
+            if (e.cant_repetidos_retiros == 1 && e.id_curso == cursos[i].id_curso) {
+                return e;
+            }
+        });
+        const curso = {
+            id_class: cursos[i].id_curso,
+            cant: estudiantes.length,
+            ests: estudiantes
+        }
+        datos.push(curso);
+    }
+    return datos;
+}
+
+const procesarRetiros = async(d, url, api_key, user) => {
+    let cant_retiros = 0;
+    d.map(r => {
+        cant_retiros = cant_retiros + r.cant;
+    })
+    let respData = {
+        msg: "Retiros realizados: " + cant_retiros,
+        data: []
+    };
+    for (let i = 0; i < d.length; i++) {
+        let params = `&class_id=${d[i].id_class}`;
+        for (let j = 0; j < d[i].ests.length; j++) {
+            params = params + "&user_ids[]=" + d[i].ests[j].id_usuario
+        }
+        const resp = await peticionApiNeo(url, 'remove_students_from_class', api_key, params);
+        await delay(200);
+        const result = {
+            class_id: d[i].id_class,
+            cantidad: d[i].ests.length,
+            parametros: params,
+            result: resp
+        }
+        respData.data.push(result);
+    }
+    return respData
+}
+
+const inscripcionesEstudiantesPregrado = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const listInsc = await listaEstInscritos(id_semestre, id_regional);
+    if (!listInsc.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listInsc, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    const cursos = listCursosInscr(listInsc.data);
+    console.log("Cantidas de inscripciones a cursos", cursos.length);
+    const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
+    const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    //actualizar estado inscripcion
+    const updateInsc = await updateInscripciones(listInsc.data)
+    res.json(success(respInscripciones));
+    //res.json(success(inscPorCursos))
+}
+
+//pruebas-inscripciones
+const inscripcionesEstudiantesPregradoPrueba = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const listInsc = await listaEstInscritos(id_semestre, id_regional);
+    if (!listInsc.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listInsc, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    const cursos = listCursosInscr(listInsc.data);
+    console.log("Cantidas de inscripciones a cursos", cursos.length);
+    const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
+    const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    //actualizar estado inscripcion
+    const updateInsc = await updateInscripciones(listInsc.data)
+    res.json(success(respInscripciones));
+    //res.json(success(inscPorCursos))
+}
+
+const listaEstInscritos = async(id_semestre, id_regional) => {
+    const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
+    FROM 
+    (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
+    di.sigla_materia,di.nombre_materia,di.numero_paralelo,di.id_persona_est,di.email_ucb_est,
+    di.inscripcion_nueva,di.codigo_curso_paralelo,di.codigo_inscripcion_est
+    FROM Datos_inscripciones di
+    WHERE di.estado_movimiento in (1,6,7)
+    and di.inscripcion_nueva = 1
+    and di.id_regional = ?
+    and di.id_semestre = ?
+    ) r, Cursos c, Usuarios u
+    where c.codigo_curso = r.codigo_curso_paralelo
+    and u.email_institucional = r.email_ucb_est`;
+    const resultRetiros = await consulta(sqlRetirosPorSemestre, [id_regional, id_semestre]);
+    return resultRetiros;
+}
+
+const listCursosInscr = (arr) => {
+    let hash = {};
+    const array = arr.filter(o => hash[o.id_curso] ? false : hash[o.id_curso] = true);
+    return array;
+}
+
+const unirDatosInsc = (cursos, retirosEst) => {
+    let datos = [];
+    for (let i = 0; i < cursos.length; i++) {
+        const estudiantes = retirosEst.filter(e => e.id_curso == cursos[i].id_curso);
+        const curso = {
+            id_class: cursos[i].id_curso,
+            cant: estudiantes.length,
+            ests: estudiantes
+        }
+        datos.push(curso);
+    }
+    return datos;
+}
+
+const procesarInsc = async(d, url, api_key, user) => {
+    let cant_insc = 0;
+    d.map(r => {
+        cant_insc = cant_insc + r.cant;
+    })
+    let respData = {
+        msg: "Inscripciones realizadas: " + cant_insc,
+        data: []
+    };
+    for (let i = 0; i < d.length; i++) {
+        let params = `&class_id=${d[i].id_class}`;
+        for (let j = 0; j < d[i].ests.length; j++) {
+            params = params + "&user_ids[]=" + d[i].ests[j].id_usuario
+        }
+        const resp = await peticionApiNeo(url, 'add_students_to_class', api_key, params);
+        await delay(200);
+        const result = {
+            class_id: d[i].id_class,
+            cantidad: d[i].ests.length,
+            parametros: params,
+            result: resp
+        }
+        respData.data.push(result);
+    }
+    return respData
+}
+
+const updateInscripciones = async(list) => {
+    let ids = "";
+    list.map(i => {
+        ids = ids + i.id_inscripcion + ",";
+    });
+    const idInsc = ids.substring(0, ids.length - 1);
+    const sqlUpdate = `update Datos_inscripciones set inscripcion_nueva = 0 where id_inscripcion in (${idInsc})`;
+    const result = await consulta(sqlUpdate, []);
+    return result;
+}
+
+const inscripcionesEstudiantesPregradoCsv = async(req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const listInsc = await listaEstInscritos(id_semestre, id_regional);
+    if (!listInsc.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listInsc, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    const encavezadoCsv = `id_inscripcion,fecha_registro_est,estado_movimiento,movimiento,id_paralelo,sigla_materia,nombre_materia,numero_paralelo,id_persona_est,email_ucb_est,inscripcion_nueva,codigo_curso_paralelo,codigo_inscripcion_est,id_usuario,id_curso,codigo_curso\n`;
+    let datosCsv = "";
+    for (let i = 0; i < listInsc.data.length; i++) {
+        datosCsv = datosCsv + generarDatosInscCsv(listInsc.data[i]) + "\n";
+    }
+    if (datosCsv.length == 0) {
+        return res.json(success({
+            msg: "No hay datos de inscripcion",
+            ruta: null
+        }));
+    }
+    const date = new Date();
+    const ruta = `csv/insc-${user}-${otroFormatoFecha(date, 'DD-MM-YYYY-HH-mm-ss')}.csv`;
+    const respCsv = guardarCsv(ruta, encavezadoCsv + datosCsv, req.get('host'));
+
+    //actualizar estado inscripcion
+    const updateInsc = await updateInscripciones(listInsc.data)
+    res.json(respCsv);
+    //res.json(success(inscPorCursos))
+}
+
+generarDatosInscCsv = (i) => {
+    id_inscripcion = i.id_inscripcion;
+    fecha_registro_est = otroFormatoFecha(i.fecha_registro_est, 'DD/MM/YYYY hh:mm:ss');
+    estado_movimiento = i.estado_movimiento;
+    movimiento = i.movimiento;
+    id_paralelo = i.id_paralelo;
+    sigla_materia = i.sigla_materia;
+    nombre_materia = i.nombre_materia.replace(/,/g, '');
+    numero_paralelo = i.numero_paralelo;
+    id_persona_est = i.id_persona_est;
+    email_ucb_est = i.email_ucb_est;
+    inscripcion_nueva = i.inscripcion_nueva;
+    codigo_curso_paralelo = i.codigo_curso_paralelo;
+    codigo_inscripcion_est = i.codigo_inscripcion_est;
+    id_usuario = i.id_usuario;
+    id_curso = i.id_curso;
+    codigo_curso = i.codigo_curso;
+    return `${id_inscripcion},${fecha_registro_est},${estado_movimiento},${movimiento},${id_paralelo},${sigla_materia},${nombre_materia},${numero_paralelo},${id_persona_est},${email_ucb_est},${inscripcion_nueva},${codigo_curso_paralelo},${codigo_inscripcion_est},${id_usuario},${id_curso},${codigo_curso}`;
+}
+
+//borrar 
+datosPruebaCsv = async(id_semestre, id_regional) => {
+    const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
+    FROM 
+    (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
+    di.sigla_materia,di.nombre_materia,di.numero_paralelo,di.id_persona_est,di.email_ucb_est,
+    di.inscripcion_nueva,di.codigo_curso_paralelo,di.codigo_inscripcion_est
+    FROM Datos_inscripciones di
+    WHERE di.estado_movimiento in (1,6,7)
+    and di.inscripcion_nueva = 0
+    and di.id_regional = ?
+    and di.id_semestre = ?
+    ) r, Cursos c, Usuarios u
+    where c.codigo_curso = r.codigo_curso_paralelo
+    and u.email_institucional = r.email_ucb_est`;
+    const resultRetiros = await consulta(sqlRetirosPorSemestre, [id_regional, id_semestre]);
+    return resultRetiros;
+}
+
 module.exports = {
     crearDocentesPregrado,
     asignarParalelosDocentesPregrado,
-    crearEstudiantesPregrado
+    crearEstudiantesPregrado,
+    retirosEstudiantesPregrado,
+    inscripcionesEstudiantesPregrado,
+    inscripcionesEstudiantesPregradoCsv
 }

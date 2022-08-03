@@ -30,9 +30,12 @@ const crearPlantillasPregrado = async(req = request, res = response) => {
     if (!datosPlantillas.ok) {
         return res.status(500).json(datosPlantillas);
     }
+    console.log("datosAsignaturas", datosAsignaturas.data.length);
     console.log("Plantillas", datosPlantillas.data.length);
     const sinDuplicados = datosPantillasPregrado(datosAsignaturas.data);
+    console.log("sinDuplicados", sinDuplicados.length);
     const plantillasACrear = quitarPlantillasExistentes(sinDuplicados, datosPlantillas.data);
+    console.log("plantillasACrear", plantillasACrear.length);
     const respCreacion = await crearPlantillas(plantillasACrear, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
     res.json(success(respCreacion));
 }
@@ -137,7 +140,8 @@ const quitarPlantillasExistentes = (list1, list2) => {
     plantillasFaltantes = []
     list1.map((p) => {
         const existe = list2.find(e => e.codigo_curso === p.codigo_curso);
-        if (existe == undefined) plantillasFaltantes.push(p);
+        console.log("Plantilla ", existe);
+        if (existe === undefined) plantillasFaltantes.push(p);
     });
     return plantillasFaltantes;
 }

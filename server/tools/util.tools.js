@@ -1,4 +1,6 @@
 const moment = require('moment');
+const fs = require('fs');
+const { error, success } = require('../controllers/respuestas.controller');
 
 const formatoFecha = (fechaUnix, formato) => {
     const fecha = new Date((fechaUnix - (25567 + 2)) * 86400 * 1000);
@@ -48,11 +50,30 @@ capitalizar = (text) => {
     return text[0].toUpperCase() + text.toLowerCase().slice(1);
 }
 
+guardarCsv = (ruta, datos, host) => {
+    try {
+        fs.writeFileSync(`server/uploads/paralelos/${ruta}`, datos);
+        const rutaArchivo = `${host}/${ruta}`;
+        return success({
+            msg: "Ruta del archivo CSV",
+            ruta: rutaArchivo
+        });
+    } catch (error) {
+        console.log("Cannot write file ", error);
+        return error({
+            msg: "Error al crear el archivo",
+            error: error
+        })
+    }
+}
+
+
 module.exports = {
     formatoFecha,
     transformarNomRegional,
     formatoFechaNeo,
     otroFormatoFecha,
     delay,
-    capitalizar
+    capitalizar,
+    guardarCsv
 }

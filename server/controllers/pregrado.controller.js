@@ -44,7 +44,7 @@ registrarAsignaturasPregrado = async(datos, user) => {
 
 registrarInscripcionesPregrado = async(datos, user) => {
     let contInsert = datos.length;
-    const sqlInsertInscripciones = "INSERT INTO Datos_inscripciones (fecha_registro_est, estado_movimiento, movimiento, id_regional, nombre_regional, id_semestre, id_paralelo, id_materia, sigla_materia, nombre_materia, numero_paralelo, id_carrera, carrera, doc_identidad_est, nombres_est, ap_paterno_est, ap_materno_est, fecha_nacimiento_est, sexo_est, celular_est, id_persona_est, email_ucb_est, codigo_curso_paralelo, usuario_registro) VALUES ";
+    const sqlInsertInscripciones = "INSERT INTO Datos_inscripciones (fecha_registro_est, estado_movimiento, movimiento, id_regional, nombre_regional, id_semestre, id_paralelo, id_materia, sigla_materia, nombre_materia, numero_paralelo, id_carrera, carrera, doc_identidad_est, nombres_est, ap_paterno_est, ap_materno_est, fecha_nacimiento_est, sexo_est, celular_est, id_persona_est, email_ucb_est, codigo_curso_paralelo, codigo_inscripcion_est, usuario_registro) VALUES ";
     let valuesInscripciones = "";
     for (let i = 0; i < datos.length; i++) {
         let value = transformarDatosInscripcion(datos[i], user);
@@ -55,24 +55,25 @@ registrarInscripcionesPregrado = async(datos, user) => {
         const respInsert = await consulta(sql, []);
         if (respInsert.ok) {
             return success({
-                msg: "Registros creados",
-                data: {
-                    insert: respInsert.data,
-                    msg: `Datos registrados ${contInsert}`
-                }
+                msg: "Datos registrados " + contInsert,
+                data: JSON.stringify(respInsert.data, (key, value) =>
+                    typeof value === "bigint" ? value.toString() + "" : value
+                )
             });
         } else {
             return error({
                 msg: "Error interno del servidor",
-                error: respInsert.error
+                error: JSON.stringify(respInsert.error, (key, value) =>
+                    typeof value === "bigint" ? value.toString() + "" : value
+                )
             });
         }
     } else {
         return success({
             msg: "Registros creados",
             data: {
-                insert: "Registros creados 0",
-                msg: `Datos registrados ${contInsert}`
+                msg: `Datos registrados ${contInsert}`,
+                insert: "Registros creados 0"
             }
         });
     }
@@ -173,7 +174,8 @@ transformarDatosInscripcion = (i, user) => {
         ${i.celular_est === undefined ? null : `'${i.celular_est}'`},
         ${i.id_persona_est},
         ${i.email_ucb_est === undefined ? null : `'${i.email_ucb_est}'`},
-        '${i.id_regional}.${i.id_paralelo}'
+        '${i.id_regional}.${i.id_paralelo}',
+        '${i.id_regional}.${i.id_paralelo}.${i.id_persona_est}',
         '${user}'
     ),`;
 }

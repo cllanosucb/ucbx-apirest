@@ -4,9 +4,12 @@ const {
     verificarToken
 } = require('../middlewares/autenticacion.middleware');
 const {
-    subirExcelPregrado
+    subirExcelPregrado,
+    excelPregradoInscripciones
 } = require('../controllers/upload.controller');
 
 app.put('/excelPregrado', verificarToken, subirExcelPregrado);
+
+app.put('/excelPregradoInscripciones', verificarToken, excelPregradoInscripciones);
 
 module.exports = app;

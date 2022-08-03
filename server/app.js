@@ -10,7 +10,7 @@ const app = express();
 app.use(fileUpload());
 //Directorio publico
 app.use(express.static('server/public'));
-//app.use(express.static(path.resolve(__dirname, '../csv')));
+app.use(express.static(path.resolve(__dirname, 'uploads/paralelos')));
 //Usar cors
 app.use(cors());
 // parse application/x-www-form-urlencoded
