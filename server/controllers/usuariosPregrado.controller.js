@@ -351,7 +351,7 @@ const crearEstudiantes = async(plist, url, api_key, user) => {
             datosRes.totales.usuarios_creadas_neo = datosRes.totales.usuarios_creadas_neo + 1;
             const insertp = await insertUsuario(resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user);
             if (!insertp.ok) {
-                datosRes.totales.error_insert_usuarios_db = datosRes.totales.error_insert_usuarios_db + 1;
+                datosRes.totales.insert_usuarios_db = datosRes.totales.insert_usuarios_db + 1;
                 datosRes.datos_respuestas.push({
                     tipo: "Creacion en db auxiliar",
                     datos: [resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user].toString(),
@@ -484,12 +484,14 @@ const inscripcionesEstudiantesPregrado = async(req = request, res = response) =>
             typeof value === "bigint" ? value.toString() + "" : value
         )));
     }
-    const cursos = listCursosInscr(listInsc.data);
-    if (listInsc.data > 1500) {
-        console.log("Cantidas de inscripciones", listInsc.data);
-        const respinsc = await inscripcionesEstudiantesPorCsv(listInsc.data, user);
+    console.log("listInsc.data", listInsc.data.length);
+    if (listInsc.data.length > 1000) {
+        console.log("Cantidas de inscripciones", listInsc.data.length);
+        const respinsc = await inscripcionesEstudiantesPorCsv(listInsc.data, user, req.get('host'));
+        const updateInsc = await updateInscripciones(listInsc.data);
         return res.json(respinsc)
     } else {
+        const cursos = listCursosInscr(listInsc.data);
         console.log("Cantidas de inscripciones a cursos", cursos.length);
         const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
         const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
@@ -607,11 +609,11 @@ const inscripcionesEstudiantesPregradoCsv = async(req = request, res = response)
     //res.json(success(inscPorCursos))
 }
 
-const inscripcionesEstudiantesPorCsv = async(listInsc, user) => {
+const inscripcionesEstudiantesPorCsv = async(listInsc, user, host) => {
     const encavezadoCsv = `id_inscripcion,fecha_registro_est,estado_movimiento,movimiento,id_paralelo,sigla_materia,nombre_materia,numero_paralelo,id_persona_est,email_ucb_est,inscripcion_nueva,codigo_curso_paralelo,codigo_inscripcion_est,id_usuario,id_curso,codigo_curso\n`;
     let datosCsv = "";
     for (let i = 0; i < listInsc.length; i++) {
-        datosCsv = datosCsv + generarDatosInscCsv(listInsc.data[i]) + "\n";
+        datosCsv = datosCsv + generarDatosInscCsv(listInsc[i]) + "\n";
     }
     if (datosCsv.length == 0) {
         return res.json(success({
@@ -621,17 +623,17 @@ const inscripcionesEstudiantesPorCsv = async(listInsc, user) => {
     }
     const date = new Date();
     const ruta = `csv/insc-${user}-${otroFormatoFecha(date, 'DD-MM-YYYY-HH-mm-ss')}.csv`;
-    const respCsv = guardarCsv(ruta, encavezadoCsv + datosCsv, req.get('host'));
+    const respCsv = guardarCsv(ruta, encavezadoCsv + datosCsv, host);
 
     //actualizar estado inscripcion
-    const updateInsc = await updateInscripciones(listInsc.data)
-    res.json(respCsv);
+    //const updateInsc = await updateInscripciones(listInsc.data)
+    return respCsv;
     //res.json(success(inscPorCursos))
 }
 
 generarDatosInscCsv = (i) => {
     id_inscripcion = i.id_inscripcion;
-    fecha_registro_est = i.fecha_registro_est, 'DD/MM/YYYY hh:mm:ss';
+    fecha_registro_est = i.fecha_registro_est;
     estado_movimiento = i.estado_movimiento;
     movimiento = i.movimiento;
     id_paralelo = i.id_paralelo;

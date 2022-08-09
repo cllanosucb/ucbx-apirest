@@ -199,6 +199,7 @@ transformarDatosInscripcion = (i, user) => {
         '${user}'
     ),`;
 }
+//${i.fecha_nacimiento_est === undefined ? null : `'${formatoFecha(i.fecha_nacimiento_est, 'YYYY-MM-DD')}'`},
 
 //pruebas
 registrarInscripcionesPregradoPrueba = async (datos, user) => {
