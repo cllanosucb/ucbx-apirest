@@ -139,7 +139,7 @@ const docentesPregrado = async(lista, lusu) => {
         if (docUsu === undefined) {
             const d = {
                 nombre: capitalizar(lista[i].nombres_docente),
-                primer_ap: `${lista[i].ap_paterno_docente != null ? capitalizar(lista[i].ap_paterno_docente) : ''} ${lista[i].ap_materno_docente != null ? capitalizar(lista[i].ap_paterno_docente) : ''}`,
+                primer_ap: `${lista[i].ap_paterno_docente != null ? capitalizar(lista[i].ap_paterno_docente) : ''} ${lista[i].ap_materno_docente != null ? capitalizar(lista[i].ap_materno_docente) : ''}`,
                 userid: lista[i].email_ucb_docente.toLowerCase().split('@')[0],
                 contrasenia: `${lista[i].email_ucb_docente.toLowerCase().split('@')[0]}@${lista[i].ci_docente}`,
                 fecha_nac: lista[i].fecha_nacimiento_docente != null ? otroFormatoFecha(lista[i].fecha_nacimiento_docente, 'MM/DD/YYYY') : null,
@@ -311,14 +311,14 @@ const quitarDuplicadosEst = (lista) => {
             primer_ap: `${lista[i].ap_paterno_est != null ? capitalizar(lista[i].ap_paterno_est) : ''} ${lista[i].ap_materno_est != null ? capitalizar(lista[i].ap_materno_est) : ''}`,
             userid: lista[i].email_ucb_est.toLowerCase().split('@')[0],
             contrasenia: `${lista[i].email_ucb_est.toLowerCase().split('@')[0]}@${lista[i].doc_identidad_est}`,
-            fecha_nac: lista[i].fecha_nacimiento_est != null ? otroFormatoFecha(lista[i].fecha_nacimiento_est, 'MM/DD/YYYY') : null,
+            fecha_nac: lista[i].fecha_nacimiento_est != null ? otroFormatoFecha(lista[i].fecha_nacimiento_est, 'MM/DD/YYYY') : '',
             fecha_nac_or: lista[i].fecha_nacimiento_est != null ? lista[i].fecha_nacimiento_est : null,
             ci: `${lista[i].id_regional}${lista[i].doc_identidad_est}`,
             sexo: lista[i].sexo_est == 1 ? 'Male' : 'Female',
-            carrera_usuario: lista[i].carrera != null ? lista[i].carrera : null,
+            carrera_usuario: lista[i].carrera != null ? lista[i].carrera : '',
             registro_ucb: `${lista[i].id_regional}${lista[i].id_persona_est}`,
             email_institucional: lista[i].email_ucb_est.toLowerCase(),
-            telefono: lista[i].celular_est != null ? lista[i].celular_est : null,
+            telefono: lista[i].celular_est != null ? lista[i].celular_est : '',
             pais: 'Bolivia',
             id_organizacion: lista[i].id_organizacion,
             tipo_cuenta: 'student',
@@ -344,7 +344,8 @@ const crearEstudiantes = async(plist, url, api_key, user) => {
         datos_respuestas: []
     };
     for (let i = 0; i < plist.length; i++) {
-        const parametros = `&first_name=${plist[i].nombre}&last_name=${plist[i].primer_ap}&userid=${plist[i].userid}&password=${plist[i].contrasenia}&organization_id=${plist[i].id_organizacion}&birthdate=${plist[i].fecha_nac}&teacher_id=${plist[i].ci}&gender=${plist[i].sexo}&departamento=${plist[i].carrera_usuario}&registro ucb=${plist[i].registro_ucb}&email=${plist[i].email_institucional}&phone=${plist[i].telefono}&country=${plist[i].pais}&archived=${plist[i].archivado}&account_types=${plist[i].tipo_cuenta}`;
+        //const parametros = `&first_name=${plist[i].nombre}&last_name=${plist[i].primer_ap}&userid=${plist[i].userid}&password=${plist[i].contrasenia}&organization_id=${plist[i].id_organizacion}&birthdate=${plist[i].fecha_nac}&teacher_id=${plist[i].ci}&gender=${plist[i].sexo}&departamento=${plist[i].carrera_usuario}&registro ucb=${plist[i].registro_ucb}&email=${plist[i].email_institucional}&phone=${plist[i].telefono}&country=${plist[i].pais}&archived=${plist[i].archivado}&account_types=${plist[i].tipo_cuenta}`;
+        const parametros = `&first_name=${plist[i].nombre}&last_name=${plist[i].primer_ap}&userid=${plist[i].userid}&password=${plist[i].contrasenia}&organization_id=${plist[i].id_organizacion}&teacher_id=${plist[i].ci}&gender=${plist[i].sexo}&departamento=${plist[i].carrera_usuario}&registro ucb=${plist[i].registro_ucb}&email=${plist[i].email_institucional}&phone=${plist[i].telefono}&country=${plist[i].pais}&archived=${plist[i].archivado}&account_types=${plist[i].tipo_cuenta}`;
         const resUsuario = await peticionApiNeo(url, 'add_user', api_key, parametros);
         if (resUsuario.ok) {
             datosRes.totales.usuarios_creadas_neo = datosRes.totales.usuarios_creadas_neo + 1;
@@ -387,6 +388,7 @@ const retirosEstudiantesPregrado = async(req = request, res = response) => {
         )));
     }
     const cursos = listCursos(listRetiros.data);
+    console.log(listRetiros.data.length);
     const retirosPorCursos = unirDatosRetiros(cursos, listRetiros.data);
     console.log("Cantidad de cursos de retiro", retirosPorCursos.length);
     const respRetiros = await procesarRetiros(retirosPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
@@ -483,38 +485,19 @@ const inscripcionesEstudiantesPregrado = async(req = request, res = response) =>
         )));
     }
     const cursos = listCursosInscr(listInsc.data);
-    console.log("Cantidas de inscripciones a cursos", cursos.length);
-    const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
-    const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
-    //actualizar estado inscripcion
-    const updateInsc = await updateInscripciones(listInsc.data)
-    res.json(success(respInscripciones));
-    //res.json(success(inscPorCursos))
-}
-
-//pruebas-inscripciones
-const inscripcionesEstudiantesPregradoPrueba = async(req = request, res = response) => {
-    const { id_usuario, usuario } = req.datos;
-    const user = usuario.split('@')[0];
-    const { id_semestre, id_regional } = req.body;
-    const llaves = await llavesPorUsuario(id_usuario);
-    if (!llaves.ok) {
-        return res.status(500).json(llaves);
+    if (listInsc.data > 1500) {
+        console.log("Cantidas de inscripciones", listInsc.data);
+        const respinsc = await inscripcionesEstudiantesPorCsv(listInsc.data, user);
+        return res.json(respinsc)
+    } else {
+        console.log("Cantidas de inscripciones a cursos", cursos.length);
+        const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
+        const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+        //actualizar estado inscripcion
+        const updateInsc = await updateInscripciones(listInsc.data)
+        res.json(respInscripciones);
+        //res.json(success(inscPorCursos))
     }
-    const listInsc = await listaEstInscritos(id_semestre, id_regional);
-    if (!listInsc.ok) {
-        return res.status(500).json(JSON.parse(JSON.stringify(listInsc, (key, value) =>
-            typeof value === "bigint" ? value.toString() + "" : value
-        )));
-    }
-    const cursos = listCursosInscr(listInsc.data);
-    console.log("Cantidas de inscripciones a cursos", cursos.length);
-    const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
-    const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
-    //actualizar estado inscripcion
-    const updateInsc = await updateInscripciones(listInsc.data)
-    res.json(success(respInscripciones));
-    //res.json(success(inscPorCursos))
 }
 
 const listaEstInscritos = async(id_semestre, id_regional) => {
@@ -579,7 +562,7 @@ const procesarInsc = async(d, url, api_key, user) => {
         }
         respData.data.push(result);
     }
-    return respData
+    return success(respData);
 }
 
 const updateInscripciones = async(list) => {
@@ -624,9 +607,31 @@ const inscripcionesEstudiantesPregradoCsv = async(req = request, res = response)
     //res.json(success(inscPorCursos))
 }
 
+const inscripcionesEstudiantesPorCsv = async(listInsc, user) => {
+    const encavezadoCsv = `id_inscripcion,fecha_registro_est,estado_movimiento,movimiento,id_paralelo,sigla_materia,nombre_materia,numero_paralelo,id_persona_est,email_ucb_est,inscripcion_nueva,codigo_curso_paralelo,codigo_inscripcion_est,id_usuario,id_curso,codigo_curso\n`;
+    let datosCsv = "";
+    for (let i = 0; i < listInsc.length; i++) {
+        datosCsv = datosCsv + generarDatosInscCsv(listInsc.data[i]) + "\n";
+    }
+    if (datosCsv.length == 0) {
+        return res.json(success({
+            msg: "No hay datos de inscripcion",
+            ruta: null
+        }));
+    }
+    const date = new Date();
+    const ruta = `csv/insc-${user}-${otroFormatoFecha(date, 'DD-MM-YYYY-HH-mm-ss')}.csv`;
+    const respCsv = guardarCsv(ruta, encavezadoCsv + datosCsv, req.get('host'));
+
+    //actualizar estado inscripcion
+    const updateInsc = await updateInscripciones(listInsc.data)
+    res.json(respCsv);
+    //res.json(success(inscPorCursos))
+}
+
 generarDatosInscCsv = (i) => {
     id_inscripcion = i.id_inscripcion;
-    fecha_registro_est = otroFormatoFecha(i.fecha_registro_est, 'DD/MM/YYYY hh:mm:ss');
+    fecha_registro_est = i.fecha_registro_est, 'DD/MM/YYYY hh:mm:ss';
     estado_movimiento = i.estado_movimiento;
     movimiento = i.movimiento;
     id_paralelo = i.id_paralelo;

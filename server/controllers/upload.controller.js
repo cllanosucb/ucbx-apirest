@@ -11,7 +11,8 @@ const { subirArchivo } = require('../tools/fileupload.tool');
 const { formatoFecha } = require('../tools/util.tools');
 const {
     registrarAsignaturasPregrado,
-    registrarInscripcionesPregrado
+    registrarInscripcionesPregrado,
+    registrarInscripcionesPregradoPrueba
 } = require('./pregrado.controller');
 
 const subirExcelPregrado = async(req = request, res = response) => {
@@ -141,7 +142,61 @@ cargarDatosInscripciones = async(ruta, user) => {
     });
 }
 
+
+const excelPregradoInscripcionesPrueba = async(req = request, res = response) => {
+    if (!req.files) {
+        return res.status(400).json(error({
+            msg: "No se selecciono ningun archivo",
+            error: null
+        }));
+    }
+    const user = req.datos.usuario.split('@')[0];
+    let archivo = req.files.archivo;
+    let nombreArchivo = archivo.name.split('.');
+    let extencion = nombreArchivo[nombreArchivo.length - 1];
+    //EXTENCIONES
+    let extencionesValidas = ['xlsx', 'xls'];
+    if (extencionesValidas.indexOf(extencion) < 0) {
+        return res.status(400).json(error({
+            msg: "Las extenciones validas son: " + extencionesValidas.join(', '),
+            error: null
+        }));
+    }
+    const fecha = new Date();
+    let fileName = `i-${user}-${fecha.getDate()}-${fecha.getMonth()}-${fecha.getFullYear()}-${fecha.getHours()}-${fecha.getMinutes()}-${fecha.getSeconds()}`;
+    let ruta = `server/uploads/pregrado/${fileName}.${extencion}`;
+    try {
+        const respAr = await subirArchivo(archivo, ruta);
+        const respCargaDatos = await cargarDatosInscripcionesPrueba(ruta, user);
+        if (!respCargaDatos.ok) {
+            return res.status(400).json(respCargaDatos);
+        }
+        return res.json(respCargaDatos);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json(error({
+            error: {
+                msg: "Error interno",
+                error: err
+            }
+        }));
+    }
+}
+
+
+const cargarDatosInscripcionesPrueba = async(ruta, user) => {
+    const workbook = xlsx.readFile(ruta);
+    //const workbookSheet = workbook.SheetNames;
+    const [hoja1] = workbook.SheetNames;
+    //console.log(workbook.SheetNames); //obtirne los nombres de las hojas
+    //console.log(`${hoja1} - ${hoja2}`);
+    const datos = xlsx.utils.sheet_to_json(workbook.Sheets[hoja1]);
+    const respInsertInscripciones = await registrarInscripcionesPregradoPrueba(datos, user);
+    return respInsertInscripciones;
+}
+
 module.exports = {
     subirExcelPregrado,
-    excelPregradoInscripciones
+    excelPregradoInscripciones,
+    excelPregradoInscripcionesPrueba
 }

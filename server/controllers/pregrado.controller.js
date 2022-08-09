@@ -35,6 +35,9 @@ registrarAsignaturasPregrado = async(datos, user) => {
         const valuesInsert = sqlInsertAsignaturas + valuesi;
         insert = await consulta(valuesInsert, []);
     }
+    //cambiar estado de paralelo_nuevo a existentes
+    const quitarEsistentes = await verificarCreacionAsignaturas(datos);
+    console.log("quitarEsistentes", quitarEsistentes);
     return success({
         insert: insert,
         contUpdate,
@@ -89,6 +92,23 @@ const listDatosAnt = async(lista) => {
     const sqlDatos = `SELECT * FROM Datos_asignaturas WHERE id_paralelo in (${datos})`;
     const result = await consulta(sqlDatos, []);
     return result.ok ? result.data : [];
+}
+
+const verificarCreacionAsignaturas = async(lista) => {
+    let paralelos = "";
+    lista.map(a => {
+        paralelos = paralelos + a.id_paralelo + ",";
+
+    });
+    const datos = paralelos.length > 0 ? paralelos.substring(0, paralelos.length - 1) : '';
+    const sqlDatos = `UPDATE Datos_asignaturas SET paralelo_nuevo = 0, docente_nuevo = 0 
+    WHERE id_paralelo in (SELECT da.id_paralelo
+        FROM Datos_asignaturas da, Cursos c
+        WHERE da.codigo_curso_paralelo = c.codigo_curso
+        and da.paralelo_nuevo = 1
+        and da.id_paralelo in (${datos}))`;
+    const result = await consulta(sqlDatos, []);
+    return result.ok ? result.data : result.error;
 }
 
 transformarDatosAsignatura = (a, user) => {
@@ -152,7 +172,7 @@ transformarDatosAsignaturaUpdate = (a, user) => {
 
 transformarDatosInscripcion = (i, user) => {
     return `(
-        '${formatoFecha(i.fecha_registro_est, 'YYYY-MM-DD HH:mm:ss')}',
+        '${formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss')}',
         ${i.estado_movimiento === undefined ? null : i.estado_movimiento},
         ${i.movimiento === undefined ? null : `'${i.movimiento}'`},
         ${i.id_regional === undefined ? null : i.id_regional},
@@ -180,9 +200,80 @@ transformarDatosInscripcion = (i, user) => {
     ),`;
 }
 
+//pruebas
+registrarInscripcionesPregradoPrueba = async (datos, user) => {
+    let contInsert = 0;
+    const id_semestre = datos[0].id_semestre;
+    const id_regional = datos[0].id_regional;
+    const sqlInsertInscripciones = "INSERT INTO Datos_inscripciones (fecha_registro_est, estado_movimiento, movimiento, id_regional, nombre_regional, id_semestre, id_paralelo, id_materia, sigla_materia, nombre_materia, numero_paralelo, id_carrera, carrera, doc_identidad_est, nombres_est, ap_paterno_est, ap_materno_est, fecha_nacimiento_est, sexo_est, celular_est, id_persona_est, email_ucb_est, codigo_curso_paralelo, codigo_inscripcion_est, usuario_registro) VALUES ";
+    let valuesInscripciones = "";
+    const listdb = await inscripcionListaDb(id_semestre, id_regional);
+    if (!listdb.ok) {
+        return error({
+            msg: "No se pudo recuperar los datos",
+            error: listdb.error
+        });
+    }
+    const datosARegistrar = obtenerRegistrosACrear(datos, listdb.data);
+    console.log("datosARegistrar.length", datosARegistrar.length);
+    for (let i = 0; i < datosARegistrar.length; i++) {
+        let value = transformarDatosInscripcion(datosARegistrar[i], user);
+        valuesInscripciones = valuesInscripciones + value;
+    }
+    if (valuesInscripciones.length > 0) {
+        const sql = sqlInsertInscripciones + valuesInscripciones.substring(0, valuesInscripciones.length - 1) + ";";
+        const respInsert = await consulta(sql, []);
+        if (respInsert.ok) {
+            return success({
+                msg: "Datos registrados " + contInsert,
+                data: JSON.stringify(respInsert.data, (key, value) =>
+                    typeof value === "bigint" ? value.toString() + "" : value
+                )
+            });
+        } else {
+            return error({
+                msg: "Error interno del servidor",
+                error: JSON.stringify(respInsert.error, (key, value) =>
+                    typeof value === "bigint" ? value.toString() + "" : value
+                )
+            });
+        }
+    } else {
+        return success({
+            msg: `Datos registrados ${contInsert}`,
+            data: "Registros creados 0"
+        });
+    }
+}
 
+inscripcionListaDb = async (id_semestre, id_regional) => {
+    const sql = `select id_regional, id_semestre, fecha_registro_est, id_paralelo, id_persona_est, estado_movimiento
+    from Datos_inscripciones
+    where id_regional = ?
+    and id_semestre = ?`;
+    const result = await consulta(sql, [id_regional, id_semestre]);
+    return result;
+}
+
+obtenerRegistrosACrear = (datos, listdb) => {
+    let datosInsertar = [];
+    datos.map(i => {
+        const insc = listdb.find(li => {
+            if (li.id_paralelo === i.id_paralelo && li.id_persona_est === i.id_persona_est && li.estado_movimiento === i.estado_movimiento) {
+                if (!li.fecha_registro_est != formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "") {
+                    return li;
+                }
+            }
+        });
+        if (insc === undefined) {
+            datosInsertar.push(i);
+        }
+    });
+    return datosInsertar;
+}
 
 module.exports = {
     registrarAsignaturasPregrado,
-    registrarInscripcionesPregrado
+    registrarInscripcionesPregrado,
+    registrarInscripcionesPregradoPrueba
 }
