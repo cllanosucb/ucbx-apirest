@@ -59,7 +59,7 @@ registrarInscripcionesPregrado = async(datos, user) => {
         const respInsert = await consulta(sql, []);
         if (respInsert.ok) {
             return success({
-                msg: "Datos registrados " + contInsert,
+                msg: `Datos registrados ${contInsert}`,
                 data: JSON.stringify(respInsert.data, (key, value) =>
                     typeof value === "bigint" ? value.toString() + "" : value
                 )

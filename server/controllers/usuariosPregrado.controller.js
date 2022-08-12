@@ -352,14 +352,14 @@ const crearEstudiantes = async (plist, url, api_key, user) => {
             datosRes.totales.usuarios_creadas_neo = datosRes.totales.usuarios_creadas_neo + 1;
             const insertp = await insertUsuario(resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user);
             if (!insertp.ok) {
-                datosRes.totales.insert_usuarios_db = datosRes.totales.insert_usuarios_db + 1;
+                datosRes.totales.error_insert_usuarios_db = datosRes.totales.error_insert_usuarios_db + 1;
                 datosRes.datos_respuestas.push({
                     tipo: "Creacion en db auxiliar",
                     datos: [resUsuario.data.id, plist[i].nombre, plist[i].primer_ap, plist[i].userid, plist[i].fecha_nac_or, plist[i].ci, plist[i].sexo, plist[i].carrera_usuario, plist[i].registro_ucb, plist[i].email_institucional, plist[i].telefono, plist[i].id_organizacion, plist[i].tipo_cuenta, plist[i].archivado, user].toString(),
                     respuesta: insertp
                 });
             } else {
-                datosRes.totales.error_insert_usuarios_db = datosRes.totales.error_insert_usuarios_db + 1;
+                datosRes.totales.insert_usuarios_db = datosRes.totales.insert_usuarios_db + 1;
             }
         } else {
             datosRes.totales.error_usuarios_creadas_neo++;
