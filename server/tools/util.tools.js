@@ -3,11 +3,15 @@ const fs = require('fs');
 const { error, success } = require('../controllers/respuestas.controller');
 
 const formatoFecha = (fechaUnix, formato) => {
-    const fecha = new Date((fechaUnix - (25567 + 2)) * 86400 * 1000);
-    const fechaISO = fecha.toISOString();
-    //'YYYY-MM-DD HH:mm:ss'
-    const fechaFormateada = moment(fechaISO).utc().format(formato);
-    return fechaFormateada;
+    try {
+        const fecha = new Date((fechaUnix - (25567 + 2)) * 86400 * 1000);
+        const fechaISO = fecha.toISOString();
+        //'YYYY-MM-DD HH:mm:ss'
+        const fechaFormateada = moment(fechaISO).utc().format(formato);
+        return fechaFormateada;
+    } catch (error) {
+        return null;
+    }
 }
 
 const formatoFechaNeo = (fecha) => {

@@ -29,6 +29,7 @@ const crearDocentesPregrado = async(req = request, res = response) => {
         return res.status(500).json(datosDocentes);
     }
     const listDocentesDb = await docenteslistaDb(datosDocentes.data);
+    console.log("listDocentesDb.data.length", listDocentesDb.data.length);
     const listDocentes = await docentesPregrado(datosDocentes.data, listDocentesDb.data);
     console.log("cant docentes crear", listDocentes.length);
     const respCreacion = await crearDocentes(listDocentes, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
@@ -135,7 +136,7 @@ const docenteslistaDb = async(list) => {
 const docentesPregrado = async(lista, lusu) => {
     let docentes = [];
     for (let i = 0; i < lista.length; i++) {
-        const docUsu = lusu.find(u => u.email_institucional === lista[i].email_ucb_docente)
+        const docUsu = lusu.find(u => u.email_institucional === lista[i].email_ucb_docente);
         if (docUsu === undefined) {
             const d = {
                 nombre: capitalizar(lista[i].nombres_docente),
@@ -555,7 +556,7 @@ const procesarInsc = async(d, url, api_key, user) => {
             params = params + "&user_ids[]=" + d[i].ests[j].id_usuario
         }
         const resp = await peticionApiNeo(url, 'add_students_to_class', api_key, params);
-        await delay(200);
+        await delay(300);
         const result = {
             class_id: d[i].id_class,
             cantidad: d[i].ests.length,
