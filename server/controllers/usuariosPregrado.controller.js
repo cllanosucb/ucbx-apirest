@@ -30,7 +30,7 @@ const crearDocentesPregrado = async(req = request, res = response) => {
     }
     const listDocentesDb = await docenteslistaDb(datosDocentes.data);
     console.log("listDocentesDb.data.length", listDocentesDb.data.length);
-    const listDocentes = await docentesPregrado(datosDocentes.data, listDocentesDb.data);
+    const listDocentes = await docentesPregrado(datosDocentes.ok ? datosDocentes.data : [], listDocentesDb.data);
     console.log("cant docentes crear", listDocentes.length);
     const respCreacion = await crearDocentes(listDocentes, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
     res.json(success(respCreacion));
@@ -123,17 +123,17 @@ const updateAsignaturasUsuario = async(paralelos) => {
 }
 
 const docenteslistaDb = async(list) => {
-    let docentes = "";
-    for (let i = 0; i < list.length; i++) {
-        docentes = docentes + "'" + list[i].email_ucb_docente + "',";
-    }
-    const datos = docentes.substring(0, docentes.length - 1);
-    const sql = `select * from Usuarios where email_institucional in (${datos})`;
+        let docentes = "";
+        for (let i = 0; i < list.length; i++) {
+            docentes = docentes + "'" + list[i].email_ucb_docente + "',";
+        }
+        const datos = docentes.substring(0, docentes.length - 1);
+        const sql = `select * from Usuarios where email_institucional in (${datos.length > 0 ? datos : `''`})`;
     const result = await consulta(sql, []);
     return result;
 }
 
-const docentesPregrado = async(lista, lusu) => {
+const docentesPregrado = async (lista, lusu) => {
     let docentes = [];
     for (let i = 0; i < lista.length; i++) {
         const docUsu = lusu.find(u => u.email_institucional === lista[i].email_ucb_docente);
@@ -168,7 +168,7 @@ const docentesPregrado = async(lista, lusu) => {
     return docentes;
 }
 
-const crearDocentes = async(plist, url, api_key, user) => {
+const crearDocentes = async (plist, url, api_key, user) => {
     let datosRes = {
         msg: "Registro de docentes",
         totales: {
@@ -208,7 +208,7 @@ const crearDocentes = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
-const datosDocentesParalelosPregrado = async(lista) => {
+const datosDocentesParalelosPregrado = async (lista) => {
     let datos = [];
     for (let i = 0; i < lista.length; i++) {
         if (lista[i].id_docente != 40194491) {
@@ -228,13 +228,13 @@ const datosDocentesParalelosPregrado = async(lista) => {
     return datos;
 }
 
-const updateParalelo = async(id_paralelo) => {
+const updateParalelo = async (id_paralelo) => {
     const sqlUpdate = `UPDATE Datos_asignaturas SET docente_nuevo = 0 WHERE id_paralelo = ?`;
     const result = await consulta(sqlUpdate, [id_paralelo]);
     return result;
 }
 
-const asignarDocentesParalelos = async(plist, url, api_key, user) => {
+const asignarDocentesParalelos = async (plist, url, api_key, user) => {
     let datosRes = {
         totales: {
             usuarios_asignados_neo: 0,
@@ -265,7 +265,7 @@ const asignarDocentesParalelos = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
-const crearEstudiantesPregrado = async(req = request, res = response) => {
+const crearEstudiantesPregrado = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     const { id_semestre, id_regional } = req.body;
@@ -285,7 +285,7 @@ const crearEstudiantesPregrado = async(req = request, res = response) => {
     res.json(success(respCreacion));
 }
 
-const listaEstSinCuentaNeo = async(id_semestre, id_regional) => {
+const listaEstSinCuentaNeo = async (id_semestre, id_regional) => {
     const sqlDocentesPorSemestre = `select di.*, o.id_organizacion, o.nombre
     FROM
     (
@@ -333,7 +333,7 @@ const quitarDuplicadosEst = (lista) => {
     return estudiantes;
 }
 
-const crearEstudiantes = async(plist, url, api_key, user) => {
+const crearEstudiantes = async (plist, url, api_key, user) => {
     let datosRes = {
         msg: "Registro de estudiantes",
         totales: {
@@ -374,7 +374,7 @@ const crearEstudiantes = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
-const retirosEstudiantesPregrado = async(req = request, res = response) => {
+const retirosEstudiantesPregrado = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     const { id_semestre, id_regional } = req.body;
@@ -401,7 +401,7 @@ const retirosEstudiantesPregrado = async(req = request, res = response) => {
     )))) */
 }
 
-const listaEstRetiros = async(id_semestre, id_regional) => {
+const listaEstRetiros = async (id_semestre, id_regional) => {
     const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
     FROM 
     (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
@@ -444,7 +444,7 @@ const unirDatosRetiros = (cursos, retirosEst) => {
     return datos;
 }
 
-const procesarRetiros = async(d, url, api_key, user) => {
+const procesarRetiros = async (d, url, api_key, user) => {
     let cant_retiros = 0;
     d.map(r => {
         cant_retiros = cant_retiros + r.cant;
@@ -471,7 +471,7 @@ const procesarRetiros = async(d, url, api_key, user) => {
     return respData
 }
 
-const inscripcionesEstudiantesPregrado = async(req = request, res = response) => {
+const inscripcionesEstudiantesPregrado = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     const { id_semestre, id_regional } = req.body;
@@ -503,7 +503,7 @@ const inscripcionesEstudiantesPregrado = async(req = request, res = response) =>
     }
 }
 
-const listaEstInscritos = async(id_semestre, id_regional) => {
+const listaEstInscritos = async (id_semestre, id_regional) => {
     const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
     FROM 
     (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
@@ -541,7 +541,7 @@ const unirDatosInsc = (cursos, retirosEst) => {
     return datos;
 }
 
-const procesarInsc = async(d, url, api_key, user) => {
+const procesarInsc = async (d, url, api_key, user) => {
     let cant_insc = 0;
     d.map(r => {
         cant_insc = cant_insc + r.cant;
@@ -568,7 +568,7 @@ const procesarInsc = async(d, url, api_key, user) => {
     return success(respData);
 }
 
-const updateInscripciones = async(list) => {
+const updateInscripciones = async (list) => {
     let ids = "";
     list.map(i => {
         ids = ids + i.id_inscripcion + ",";
@@ -579,7 +579,7 @@ const updateInscripciones = async(list) => {
     return result;
 }
 
-const inscripcionesEstudiantesPregradoCsv = async(req = request, res = response) => {
+const inscripcionesEstudiantesPregradoCsv = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     const { id_semestre, id_regional } = req.body;
@@ -610,7 +610,7 @@ const inscripcionesEstudiantesPregradoCsv = async(req = request, res = response)
     //res.json(success(inscPorCursos))
 }
 
-const inscripcionesEstudiantesPorCsv = async(listInsc, user, host) => {
+const inscripcionesEstudiantesPorCsv = async (listInsc, user, host) => {
     const encavezadoCsv = `id_inscripcion,fecha_registro_est,estado_movimiento,movimiento,id_paralelo,sigla_materia,nombre_materia,numero_paralelo,id_persona_est,email_ucb_est,inscripcion_nueva,codigo_curso_paralelo,codigo_inscripcion_est,id_usuario,id_curso,codigo_curso\n`;
     let datosCsv = "";
     for (let i = 0; i < listInsc.length; i++) {
@@ -653,7 +653,7 @@ generarDatosInscCsv = (i) => {
 }
 
 //borrar 
-datosPruebaCsv = async(id_semestre, id_regional) => {
+datosPruebaCsv = async (id_semestre, id_regional) => {
     const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
     FROM 
     (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo,
