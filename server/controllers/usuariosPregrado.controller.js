@@ -143,7 +143,7 @@ const docentesPregrado = async (lista, lusu) => {
                 primer_ap: `${lista[i].ap_paterno_docente != null ? capitalizar(lista[i].ap_paterno_docente) : ''} ${lista[i].ap_materno_docente != null ? capitalizar(lista[i].ap_materno_docente) : ''}`,
                 userid: lista[i].email_ucb_docente.toLowerCase().split('@')[0],
                 contrasenia: `${lista[i].email_ucb_docente.toLowerCase().split('@')[0]}@${lista[i].ci_docente}`,
-                fecha_nac: lista[i].fecha_nacimiento_docente != null ? otroFormatoFecha(lista[i].fecha_nacimiento_docente, 'MM/DD/YYYY') : null,
+                fecha_nac: lista[i].fecha_nacimiento_docente != null ? otroFormatoFecha(lista[i].fecha_nacimiento_docente, 'MM/DD/YYYY') : '',
                 fecha_nac_or: lista[i].fecha_nacimiento_docente != null ? lista[i].fecha_nacimiento_docente : null,
                 ci: `${lista[i].id_regional}${lista[i].ci_docente}`,
                 sexo: lista[i].sexo_docente == 1 ? 'Male' : 'Female',
