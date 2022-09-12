@@ -51,7 +51,8 @@ delay = (n) => {
 }
 
 capitalizar = (text) => {
-    return text[0].toUpperCase() + text.toLowerCase().slice(1);
+    //return text[0].toUpperCase() + text.toLowerCase().slice(1);
+    return text.toLowerCase().replace(/(^|\s)([a-z])/g, function(m, p1, p2) { return p1 + p2.toUpperCase(); });
 }
 
 guardarCsv = (ruta, datos, host) => {
