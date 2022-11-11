@@ -4,7 +4,7 @@ const xlsx = require('xlsx');
 const fs = require('fs');
 const { request, response } = require('express');
 const fetch = (...args) =>
-    import ('node-fetch').then(({ default: fetch }) => fetch(...args));
+    import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const { consulta, peticionApiNeo } = require('./querys.controller');
 const { error, success } = require('./respuestas.controller');
 const {
@@ -18,7 +18,7 @@ const {
 } = require('../tools/util.tools');
 const { subirArchivo } = require('../tools/fileupload.tool');
 
-const excelEncuestas = async(req = request, res = response) => {
+const excelEncuestas = async (req = request, res = response) => {
     if (!req.files) {
         return res.status(400).json(error({
             msg: "No se selecciono ningún archivo",
@@ -42,7 +42,7 @@ const excelEncuestas = async(req = request, res = response) => {
     let ruta = `server/uploads/encuestas/${fileName}.${extension}`;
     try {
         const respAr = await subirArchivo(archivo, ruta);
-        
+
         const workbook = xlsx.readFile(ruta);
         const [hoja1] = workbook.SheetNames;
         const datosExcel = xlsx.utils.sheet_to_json(workbook.Sheets[hoja1]);
@@ -80,7 +80,7 @@ registrarDatos = async (datosExcel, user) => {
             contInsert = contInsert + 1;
             valuesInsert = valuesInsert + encuestasInsert(datosExcel[i], user);
         } else {
-            if(datosExcel[i].estado_encuesta != encuesta.estado_encuesta){
+            if (datosExcel[i].estado_encuesta != encuesta.estado_encuesta) {
                 const respUpdate = await consulta(sqlUpdate, encuestasUpdate(datosExcel[i], user));
                 contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
             }
@@ -123,7 +123,7 @@ encuestasInsert = (d, user) => {
     ),`;
 }
 
-desactivarMaterias = async(req = request, res = response) => {
+desactivarMaterias = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     let respSuccess = [];
@@ -146,12 +146,12 @@ desactivarMaterias = async(req = request, res = response) => {
         const materias = JSON.parse(lista[i].materias);
         console.log(materias.length);
         for (let j = 0; j < materias.length; j++) {
-            if(materias[j] != 3784887) {
+            if (materias[j] != 3784887) {
                 console.log(materias[j]);
                 const params = `&class_id=${materias[j]}&user_ids=${lista[i].lms_id_usuario}`;
                 const respApi = await apiNeo(llaves.data[0].url_instancia, 'deactivate_students_in_class', llaves.data[0].api_key, params);
-                console.log(respApi);
-                if(respApi.ok){
+                await delay(200);
+                if (respApi.ok) {
                     respSuccess.push({
                         respApi,
                         params
@@ -165,7 +165,7 @@ desactivarMaterias = async(req = request, res = response) => {
                 }
             }
         }
-        
+
     }
 
     res.json(success({
@@ -178,7 +178,7 @@ desactivarMaterias = async(req = request, res = response) => {
 
 }
 
-activarMaterias = async(req = request, res = response) => {
+activarMaterias = async (req = request, res = response) => {
     const { id_usuario, usuario } = req.datos;
     const user = usuario.split('@')[0];
     let respSuccess = [];
@@ -201,12 +201,11 @@ activarMaterias = async(req = request, res = response) => {
         const materias = JSON.parse(lista[i].materias);
         console.log(materias.length);
         for (let j = 0; j < materias.length; j++) {
-            if(materias[j] != 3784887) {
-                console.log(materias[j]);
+            if (materias[j] != 3784887) {
                 const params = `&class_id=${materias[j]}&user_ids=${lista[i].lms_id_usuario}`;
                 const respApi = await apiNeo(llaves.data[0].url_instancia, 'reactivate_students_in_class', llaves.data[0].api_key, params);
-                console.log(respApi);
-                if(respApi.ok){
+                await delay(200);
+                if (respApi.ok) {
                     respSuccess.push({
                         respApi,
                         params
@@ -220,7 +219,7 @@ activarMaterias = async(req = request, res = response) => {
                 }
             }
         }
-        
+
     }
 
     res.json(success({
@@ -233,7 +232,7 @@ activarMaterias = async(req = request, res = response) => {
 
 }
 
-const llavesPorUsuario = async(id_usuario) => {
+const llavesPorUsuario = async (id_usuario) => {
     const sqlLlavePorUsuario = `select distinct l.url_instancia, l.api_key
     from rolusu ru, Llaves l, Roles r
     where ru.id_llave = l.id_llave and ru.id_rol = r.id_rol
@@ -254,10 +253,10 @@ const llavesPorUsuario = async(id_usuario) => {
     return success(resultLlaves.data);
 }
 
-const apiNeo = async(url, metodo, api_key, parametros) => {
+const apiNeo = async (url, metodo, api_key, parametros) => {
     try {
         const respAPI = await fetch(`${url}/${metodo}?api_key=${api_key}${parametros}`);
-        if(respAPI.ok) {
+        if (respAPI.ok) {
             const data = await respAPI.json();
             return success(data);
         } else {
@@ -265,7 +264,7 @@ const apiNeo = async(url, metodo, api_key, parametros) => {
             return error({
                 msg: "Error al realizar la petición",
                 error: data
-            });    
+            });
         }
     } catch (err) {
         return error({
