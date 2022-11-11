@@ -12,5 +12,6 @@ app.use('/calificaciones', require('./calificacion'));
 app.use('/subir', require('./upload'));
 app.use('/semestres', require('./semestres'));
 app.use('/retiros', require('./retiros'));
+app.use('/encuestas', require('./encuestas_nova'));
 
 module.exports = app;
