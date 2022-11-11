@@ -144,13 +144,10 @@ desactivarMaterias = async (req = request, res = response) => {
 
     for (let i = 0; i < lista.length; i++) {
         const materias = JSON.parse(lista[i].materias);
-        console.log(materias.length);
         for (let j = 0; j < materias.length; j++) {
             if (materias[j] != 3784887) {
-                console.log(materias[j]);
                 const params = `&class_id=${materias[j]}&user_ids=${lista[i].lms_id_usuario}`;
                 const respApi = await apiNeo(llaves.data[0].url_instancia, 'deactivate_students_in_class', llaves.data[0].api_key, params);
-                await delay(200);
                 if (respApi.ok) {
                     respSuccess.push({
                         respApi,
@@ -163,6 +160,7 @@ desactivarMaterias = async (req = request, res = response) => {
                         params
                     });
                 }
+                await delay(100);
             }
         }
 
@@ -199,12 +197,10 @@ activarMaterias = async (req = request, res = response) => {
 
     for (let i = 0; i < lista.length; i++) {
         const materias = JSON.parse(lista[i].materias);
-        console.log(materias.length);
         for (let j = 0; j < materias.length; j++) {
             if (materias[j] != 3784887) {
                 const params = `&class_id=${materias[j]}&user_ids=${lista[i].lms_id_usuario}`;
                 const respApi = await apiNeo(llaves.data[0].url_instancia, 'reactivate_students_in_class', llaves.data[0].api_key, params);
-                await delay(200);
                 if (respApi.ok) {
                     respSuccess.push({
                         respApi,
@@ -217,6 +213,7 @@ activarMaterias = async (req = request, res = response) => {
                         params
                     });
                 }
+                await delay(100);
             }
         }
 
