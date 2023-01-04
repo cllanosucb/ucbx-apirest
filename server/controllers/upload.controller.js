@@ -12,7 +12,9 @@ const { formatoFecha } = require('../tools/util.tools');
 const {
     registrarAsignaturasPregrado,
     registrarInscripcionesPregrado,
-    registrarInscripcionesPregradoPrueba
+    registrarInscripcionesPregradoPrueba,
+    registrarAsignaturasPracticasPregrado,
+    registrarInscripcionesPregradoPracticas
 } = require('./pregrado.controller');
 
 const subirExcelPregrado = async(req = request, res = response) => {
@@ -195,8 +197,118 @@ const cargarDatosInscripcionesPrueba = async(ruta, user) => {
     return respInsertInscripciones;
 }
 
+//Asignaturas practicas
+const subirExcelPregradoAsignaturasPracticas = async (req = request, res = response) => {
+    if (!req.files) {
+        return res.status(400).json(error({
+            msg: "No se selecciono ningun archivo",
+            error: null
+        }));
+    }
+    const user = req.datos.usuario.split('@')[0];
+    let archivo = req.files.archivo;
+    let nombreArchivo = archivo.name.split('.');
+    let extencion = nombreArchivo[nombreArchivo.length - 1];
+    //EXTENSIONES
+    let extencionesValidas = ['xlsx', 'xls'];
+    if (extencionesValidas.indexOf(extencion) < 0) {
+        return res.status(400).json(error({
+            msg: "Las extenciones validas son: " + extencionesValidas.join(', '),
+            error: null
+        }));
+    }
+    const fecha = new Date();
+    let fileName = `${user}-${fecha.getDate()}-${fecha.getMonth()}-${fecha.getFullYear()}-${fecha.getHours()}-${fecha.getMinutes()}-${fecha.getSeconds()}`;
+    let ruta = `server/uploads/pregrado/asgPra-${fileName}.${extencion}`;
+    try {
+        const respAr = await subirArchivo(archivo, ruta);
+        const respCargaDatos = await cargarDatosAsignaturasPracticas(ruta, user);
+        return res.status(200).json(success({
+            msg: "Resultado de creación",
+            data: JSON.stringify(respCargaDatos.data, (key, value) =>
+                typeof value === "bigint" ? value.toString() + "" : value
+            )
+        }));
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json(error({
+            error: {
+                msg: "Error interno",
+                error: err
+            }
+        }));
+    }
+}
+
+cargarDatosAsignaturasPracticas = async (ruta, user) => {
+    const workbook = xlsx.readFile(ruta);
+    const [hoja1] = workbook.SheetNames;
+    const datos = xlsx.utils.sheet_to_json(workbook.Sheets[hoja1]);
+    const respInsertAsignaturas = await registrarAsignaturasPracticasPregrado(datos, user);
+    console.log("respInsertAsignaturas", respInsertAsignaturas);
+    return success({
+        msg: "Resultado de la creación de registros",
+        data: {
+            asignaturas: respInsertAsignaturas.ok ? respInsertAsignaturas.data : respInsertAsignaturas.error,
+        }
+    });
+}
+//Asignaturas practicas
+
+//excelPregradoInscripcionesPracticas
+const excelPregradoInscripcionesPracticas = async (req = request, res = response) => {
+    if (!req.files) {
+        return res.status(400).json(error({
+            msg: "No se selecciono ningun archivo",
+            error: null
+        }));
+    }
+    const user = req.datos.usuario.split('@')[0];
+    let archivo = req.files.archivo;
+    let nombreArchivo = archivo.name.split('.');
+    let extencion = nombreArchivo[nombreArchivo.length - 1];
+    //EXTENSIONES
+    let extencionesValidas = ['xlsx', 'xls'];
+    if (extencionesValidas.indexOf(extencion) < 0) {
+        return res.status(400).json(error({
+            msg: "Las extenciones validas son: " + extencionesValidas.join(', '),
+            error: null
+        }));
+    }
+    const fecha = new Date();
+    let fileName = `iPra-${user}-${fecha.getDate()}-${fecha.getMonth()}-${fecha.getFullYear()}-${fecha.getHours()}-${fecha.getMinutes()}-${fecha.getSeconds()}`;
+    let ruta = `server/uploads/pregrado/${fileName}.${extencion}`;
+    try {
+        const respAr = await subirArchivo(archivo, ruta);
+        const respCargaDatos = await cargarDatosInscripcionesPracticas(ruta, user);
+        if (!respCargaDatos.ok) {
+            return res.status(400).json(respCargaDatos);
+        }
+        return res.json(respCargaDatos);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json(error({
+            error: {
+                msg: "Error interno",
+                error: err
+            }
+        }));
+    }
+}
+
+const cargarDatosInscripcionesPracticas = async (ruta, user) => {
+    const workbook = xlsx.readFile(ruta);
+    const [hoja1] = workbook.SheetNames;
+    const datos = xlsx.utils.sheet_to_json(workbook.Sheets[hoja1]);
+    const respInsertInscripciones = await registrarInscripcionesPregradoPracticas(datos, user);
+    return respInsertInscripciones;
+}
+//excelPregradoInscripcionesPracticas
+
 module.exports = {
     subirExcelPregrado,
     excelPregradoInscripciones,
-    excelPregradoInscripcionesPrueba
+    excelPregradoInscripcionesPrueba,
+    subirExcelPregradoAsignaturasPracticas,
+    excelPregradoInscripcionesPracticas
 }

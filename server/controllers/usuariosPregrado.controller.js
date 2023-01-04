@@ -671,11 +671,370 @@ datosPruebaCsv = async (id_semestre, id_regional) => {
     return resultRetiros;
 }
 
+//crearDocentesPracticasPregrado
+const crearDocentesPracticasPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const datosDocentes = await listaDocentesPracticasPorSemeste(id_semestre, id_regional);
+    if (!datosDocentes.ok) {
+        return res.status(500).json(datosDocentes);
+    }
+    console.log("datosDocentes", datosDocentes.data.length);
+    const listDocentesDb = await docenteslistaDb(datosDocentes.data);
+    console.log("listDocentesDb.data.length", listDocentesDb.data.length);
+    const listDocentes = await docentesPracticasPregrado(datosDocentes.ok ? datosDocentes.data : [], listDocentesDb.data);
+    console.log("cant docentes crear", listDocentes.length);
+    const respCreacion = await crearDocentes(listDocentes, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaDocentesPracticasPorSemeste = async (id_semestre, id_regional) => {
+    const sqlDocentesPorSemestre = `select da.*, o.id_organizacion, o.nombre as nom_regional
+    from Datos_asignaturas_practicas da, Organizaciones o
+    where da.id_regional = o.id_regional
+	and da.docente_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultDocentes = await consulta(sqlDocentesPorSemestre, [id_semestre, id_regional]);
+    return resultDocentes;
+}
+
+const docentesPracticasPregrado = async (lista, lusu) => {
+    let docentes = [];
+    for (let i = 0; i < lista.length; i++) {
+        const docUsu = lusu.find(u => u.email_institucional === lista[i].email_ucb_docente);
+        if (docUsu === undefined) {
+            const d = {
+                nombre: capitalizar(lista[i].nombres_docente),
+                primer_ap: `${lista[i].ap_paterno_docente != null ? capitalizar(lista[i].ap_paterno_docente) : ''} ${lista[i].ap_materno_docente != null ? capitalizar(lista[i].ap_materno_docente) : ''}`,
+                userid: lista[i].email_ucb_docente.toLowerCase().split('@')[0],
+                contrasenia: `${lista[i].email_ucb_docente.toLowerCase().split('@')[0]}@${lista[i].ci_docente}`,
+                fecha_nac: lista[i].fecha_nacimiento_docente != null ? otroFormatoFecha(lista[i].fecha_nacimiento_docente, 'MM/DD/YYYY') : '',
+                fecha_nac_or: lista[i].fecha_nacimiento_docente != null ? lista[i].fecha_nacimiento_docente : null,
+                ci: `${lista[i].id_regional}${lista[i].ci_docente}`,
+                sexo: lista[i].sexo_docente == 1 ? 'Male' : 'Female',
+                carrera_usuario: lista[i].departamento_docente != null ? lista[i].departamento_docente : null,
+                registro_ucb: `${lista[i].id_regional}${lista[i].id_docente}`,
+                email_institucional: lista[i].email_ucb_docente.toLowerCase(),
+                telefono: lista[i].celular_docente != null ? lista[i].celular_docente : null,
+                pais: 'Bolivia',
+                id_organizacion: lista[i].id_organizacion,
+                tipo_cuenta: 'teacher',
+                archivado: false,
+                id_plantilla: lista[i].id_plantilla,
+                id_curso: lista[i].id_curso,
+                id_paralelo: lista[i].id_paralelo_practica
+            }
+            docentes.push(d);
+        }
+
+    }
+    let hash = {};
+    docentes = docentes.filter(o => hash[o.registro_ucb] ? false : hash[o.registro_ucb] = true);
+    return docentes;
+}
+//crearDocentesPracticasPregrado
+
+//asignarParalelosPracticasDocentesPregrado
+const asignarParalelosPracticasDocentesPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const datosDocentes = await listaAsignacionPracticasDocentesPorSemeste(id_semestre, id_regional);
+    if (!datosDocentes.ok) {
+        return res.status(500).json(datosDocentes);
+    }
+    const listDocentes = await datosDocentesParalelosPracticasPregrado(datosDocentes.data);
+    const respCreacion = await asignarDocentesParalelosPracticas(listDocentes, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaAsignacionPracticasDocentesPorSemeste = async (id_semestre, id_regional) => {
+    const sqlDocentesPorSemestre = `select da.id_paralelo_practica, da.email_ucb_docente, da.codigo_curso_plantilla, da.codigo_curso_paralelo, p.id_plantilla, c.id_curso, u.id_usuario, u.email_institucional
+    from Datos_asignaturas_practicas da, Organizaciones o, Cursos c, Plantillas p, Usuarios u
+    where da.id_regional = o.id_regional
+	and c.codigo_curso = da.codigo_curso_paralelo
+    and p.codigo_curso = da.codigo_curso_plantilla
+	and u.email_institucional = da.email_ucb_docente
+    and da.docente_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultDocentes = await consulta(sqlDocentesPorSemestre, [id_semestre, id_regional]);
+    return resultDocentes;
+}
+
+const datosDocentesParalelosPracticasPregrado = async (lista) => {
+    let datos = [];
+    for (let i = 0; i < lista.length; i++) {
+        if (lista[i].id_docente != 40194491) {
+            const d = {
+                id_paralelo_practica: lista[i].id_paralelo_practica,
+                email_ucb_docente: lista[i].email_ucb_docente,
+                codigo_curso_plantilla: lista[i].codigo_curso_plantilla,
+                codigo_curso_paralelo: lista[i].codigo_curso_paralelo,
+                id_plantilla: lista[i].id_plantilla,
+                id_curso: lista[i].id_curso,
+                id_usuario: lista[i].id_usuario,
+                email_institucional: lista[i].email_institucional,
+            }
+            datos.push(d);
+        }
+    }
+    return datos;
+}
+
+const asignarDocentesParalelosPracticas = async (plist, url, api_key, user) => {
+    let datosRes = {
+        totales: {
+            usuarios_asignados_neo: 0,
+            error_usuarios_asignados_neo: 0,
+        },
+        datos_respuestas: []
+    };
+    let updateDocentes = "";
+    for (let i = 0; i < plist.length; i++) {
+        const parametrosParalelo = `&class_id=${plist[i].id_curso}&user_ids[]=${plist[i].id_usuario}`;
+        const respa = await peticionApiNeo(url, 'add_teachers_to_class', api_key, parametrosParalelo);
+        if (respa.ok) {
+            datosRes.totales.usuarios_asignados_neo++;
+            // const update = await updateParalelo(plist[i].id_paralelo)
+            updateDocentes = updateDocentes + plist[i].id_paralelo_practica + ","
+        } else {
+            datosRes.totales.error_usuarios_creadas_neo++;
+            datosRes.datos_respuestas.push({
+                tipo: "Creacion en NEO",
+                datos: parametrosParalelo,
+                respuesta: respa
+            });
+        }
+        // await delay(200)
+    }
+    const datos = updateDocentes.substring(0, updateDocentes.length - 1);
+    console.log(datos);
+    await updateAsignaturasPracticasUsuario(datos);
+    return datosRes;
+}
+
+const updateAsignaturasPracticasUsuario = async (paralelos) => {
+    const sqlUpdate = `UPDATE Datos_asignaturas_practicas SET docente_nuevo = 0 WHERE id_paralelo_practica in (${paralelos})`;
+    const result = await consulta(sqlUpdate, []);
+    return result;
+}
+//asignarParalelosPracticasDocentesPregrado
+
+//crearEstudiantesPregradoPractica
+const crearEstudiantesPregradoPractica = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const estSinCuenta = await listaEstSinCuentaNeoPracticas(id_semestre, id_regional);
+    //console.log(estSinCuenta);
+    if (!estSinCuenta.ok) {
+        return res.status(500).json(estSinCuenta);
+    }
+    const listE = quitarDuplicadosEst(estSinCuenta.data);
+    console.log("Estudiantes a crear", listE.length);
+
+    const respCreacion = await crearEstudiantes(listE, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaEstSinCuentaNeoPracticas = async (id_semestre, id_regional) => {
+    const sqlDocentesPorSemestre = `select di.*, o.id_organizacion, o.nombre
+    FROM
+    (
+    select DISTINCT id_persona_est, email_ucb_est
+    from Datos_inscripciones_practicas
+    where id_regional = ?
+    and id_semestre = ?
+    and inscripcion_nueva = 1
+    ) est
+    LEFT JOIN Usuarios as u on u.email_institucional = est.email_ucb_est,
+    Datos_inscripciones_practicas di, Organizaciones o
+    where u.id_usuario is null
+    and est.id_persona_est = di.id_persona_est
+    and di.id_regional = o.id_regional`;
+    const resultDocentes = await consulta(sqlDocentesPorSemestre, [id_regional, id_semestre]);
+    return resultDocentes;
+}
+//crearEstudiantesPregradoPractica
+
+//retirosEstudiantesPracticasPregrado
+const retirosEstudiantesPracticasPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const listRetiros = await listaEstRetirosPracticas(id_semestre, id_regional);
+    if (!listRetiros.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listRetiros, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    const cursos = listCursos(listRetiros.data);
+    console.log(listRetiros.data.length);
+    const retirosPorCursos = unirDatosRetiros(cursos, listRetiros.data);
+    console.log("Cantidad de cursos de retiro", retirosPorCursos.length);
+    const respRetiros = await procesarRetiros(retirosPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    //actializar tabla de datos_inscripciones
+    const updateRetiros = await updateInscripcionesPracticas(listRetiros.data);
+    res.json(success(respRetiros));
+    /* res.json(success(JSON.parse(JSON.stringify(retirosPorCursos, (key, value) =>
+        typeof value === "bigint" ? value.toString() + "" : value
+    )))) */
+}
+
+const listaEstRetirosPracticas = async (id_semestre, id_regional) => {
+    const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
+    FROM 
+    (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo_practica,
+    di.sigla_materia,di.nombre_materia,di.numero_paralelo,di.id_persona_est,di.email_ucb_est,
+    di.inscripcion_nueva,di.codigo_curso_paralelo,di.codigo_inscripcion_est, count(di.codigo_inscripcion_est) cant_repetidos_retiros
+    FROM Datos_inscripciones_practicas di
+    WHERE di.estado_movimiento in (3,4,5)
+    and di.inscripcion_nueva = 1
+    and di.id_regional = ?
+    and di.id_semestre = ?
+    GROUP BY di.codigo_inscripcion_est
+    ) r, Cursos c, Usuarios u
+    where c.codigo_curso = r.codigo_curso_paralelo
+    and u.email_institucional = r.email_ucb_est`;
+    const resultRetiros = await consulta(sqlRetirosPorSemestre, [id_regional, id_semestre]);
+    return resultRetiros;
+}
+
+const updateInscripcionesPracticas = async (list) => {
+    let ids = "";
+    list.map(i => {
+        ids = ids + i.id_inscripcion + ",";
+    });
+    const idInsc = ids.substring(0, ids.length - 1);
+    const sqlUpdate = `update Datos_inscripciones_practicas set inscripcion_nueva = 0 where id_inscripcion in (${idInsc})`;
+    const result = await consulta(sqlUpdate, []);
+    return result;
+}
+//retirosEstudiantesPracticasPregrado
+
+//inscripcionesPracticasEstudiantesPregrado
+const inscripcionesPracticasEstudiantesPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const listInsc = await listaEstInscritosPracticas(id_semestre, id_regional);
+    if (!listInsc.ok) {
+        return res.status(500).json(JSON.parse(JSON.stringify(listInsc, (key, value) =>
+            typeof value === "bigint" ? value.toString() + "" : value
+        )));
+    }
+    console.log("listInsc.data", listInsc.data.length);
+    if (listInsc.data.length > 1000) {
+        console.log("Cantidas de inscripciones", listInsc.data.length);
+        const respinsc = await inscripcionesPracticasEstudiantesPorCsv(listInsc.data, user, req.get('host'));
+        const updateInsc = await updateInscripcionesPracticas(listInsc.data);
+        return res.json(respinsc)
+    } else {
+        const cursos = listCursosInscr(listInsc.data);
+        console.log("Cantidas de inscripciones a cursos", cursos.length);
+        const inscPorCursos = unirDatosInsc(cursos, listInsc.data);
+        const respInscripciones = await procesarInsc(inscPorCursos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+        //actualizar estado inscripcion
+        const updateInsc = await updateInscripcionesPracticas(listInsc.data)
+        res.json(respInscripciones);
+        //res.json(success(inscPorCursos))
+    }
+}
+
+const listaEstInscritosPracticas = async (id_semestre, id_regional) => {
+    const sqlRetirosPorSemestre = `SELECT r.*, u.id_usuario, c.id_curso, c.codigo_curso
+    FROM 
+    (SELECT di.id_inscripcion,di.fecha_registro_est,di.estado_movimiento,di.movimiento,di.id_paralelo_practica,
+    di.sigla_materia,di.nombre_materia,di.numero_paralelo,di.id_persona_est,di.email_ucb_est,
+    di.inscripcion_nueva,di.codigo_curso_paralelo,di.codigo_inscripcion_est
+    FROM Datos_inscripciones_practicas di
+    WHERE di.estado_movimiento in (1,6,7)
+    and di.inscripcion_nueva = 1
+    and di.id_regional = ?
+    and di.id_semestre = ?
+    ) r, Cursos c, Usuarios u
+    where c.codigo_curso = r.codigo_curso_paralelo
+    and u.email_institucional = r.email_ucb_est`;
+    const resultRetiros = await consulta(sqlRetirosPorSemestre, [id_regional, id_semestre]);
+    return resultRetiros;
+}
+
+const inscripcionesPracticasEstudiantesPorCsv = async (listInsc, user, host) => {
+    const encavezadoCsv = `id_inscripcion,fecha_registro_est,estado_movimiento,movimiento,id_paralelo,sigla_materia,nombre_materia,numero_paralelo,id_persona_est,email_ucb_est,inscripcion_nueva,codigo_curso_paralelo,codigo_inscripcion_est,id_usuario,id_curso,codigo_curso\n`;
+    let datosCsv = "";
+    for (let i = 0; i < listInsc.length; i++) {
+        datosCsv = datosCsv + generarDatosInscPracticasCsv(listInsc[i]) + "\n";
+    }
+    if (datosCsv.length == 0) {
+        return res.json(success({
+            msg: "No hay datos de inscripcion",
+            ruta: null
+        }));
+    }
+    const date = new Date();
+    const ruta = `csv/inscPra-${user}-${otroFormatoFecha(date, 'DD-MM-YYYY-HH-mm-ss')}.csv`;
+    const respCsv = guardarCsv(ruta, encavezadoCsv + datosCsv, host);
+
+    //actualizar estado inscripcion
+    //const updateInsc = await updateInscripciones(listInsc.data)
+    return respCsv;
+    //res.json(success(inscPorCursos))
+}
+
+generarDatosInscPracticasCsv = (i) => {
+    id_inscripcion = i.id_inscripcion;
+    fecha_registro_est = i.fecha_registro_est;
+    estado_movimiento = i.estado_movimiento;
+    movimiento = i.movimiento;
+    id_paralelo = i.id_paralelo_practica;
+    sigla_materia = i.sigla_materia;
+    nombre_materia = i.nombre_materia.replace(/,/g, '');
+    numero_paralelo = i.numero_paralelo;
+    id_persona_est = i.id_persona_est;
+    email_ucb_est = i.email_ucb_est;
+    inscripcion_nueva = i.inscripcion_nueva;
+    codigo_curso_paralelo = i.codigo_curso_paralelo;
+    codigo_inscripcion_est = i.codigo_inscripcion_est;
+    id_usuario = i.id_usuario;
+    id_curso = i.id_curso;
+    codigo_curso = i.codigo_curso;
+    return `${id_inscripcion},${fecha_registro_est},${estado_movimiento},${movimiento},${id_paralelo},${sigla_materia},${nombre_materia},${numero_paralelo},${id_persona_est},${email_ucb_est},${inscripcion_nueva},${codigo_curso_paralelo},${codigo_inscripcion_est},${id_usuario},${id_curso},${codigo_curso}`;
+}
+//inscripcionesPracticasEstudiantesPregrado
+
 module.exports = {
     crearDocentesPregrado,
     asignarParalelosDocentesPregrado,
     crearEstudiantesPregrado,
     retirosEstudiantesPregrado,
     inscripcionesEstudiantesPregrado,
-    inscripcionesEstudiantesPregradoCsv
+    inscripcionesEstudiantesPregradoCsv,
+    crearDocentesPracticasPregrado,
+    asignarParalelosPracticasDocentesPregrado,
+    crearEstudiantesPregradoPractica,
+    retirosEstudiantesPracticasPregrado,
+    inscripcionesPracticasEstudiantesPregrado
 }

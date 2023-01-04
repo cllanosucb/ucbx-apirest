@@ -160,7 +160,7 @@ desactivarMaterias = async (req = request, res = response) => {
                         params
                     });
                 }
-                await delay(100);
+                await delay(400);
             }
         }
 
@@ -201,6 +201,7 @@ activarMaterias = async (req = request, res = response) => {
             if (materias[j] != 3784887) {
                 const params = `&class_id=${materias[j]}&user_ids=${lista[i].lms_id_usuario}`;
                 const respApi = await apiNeo(llaves.data[0].url_instancia, 'reactivate_students_in_class', llaves.data[0].api_key, params);
+                console.log(respApi);
                 if (respApi.ok) {
                     respSuccess.push({
                         respApi,
@@ -213,7 +214,7 @@ activarMaterias = async (req = request, res = response) => {
                         params
                     });
                 }
-                await delay(100);
+                await delay(200);
             }
         }
 
@@ -227,6 +228,96 @@ activarMaterias = async (req = request, res = response) => {
         }
     }));
 
+}
+
+activar = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    let respSuccess = [];
+    let respError = [];
+    let classArray = [];
+    const sqlList = `SELECT en.lms_id_usuario, en.email_ucb, en.estado_encuesta, en.estado, me.materias
+    FROM Encuestas_nova en, materias_est me
+    WHERE en.lms_id_usuario = me.lms_id_est
+    AND en.estado_encuesta = 0
+    AND en.estado = 1;`;
+    const sqlUpdate = "UPDATE Encuestas_nova SET estado = 0 WHERE lms_id_usuario IN ";
+    let arrayUser = [];
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+
+    const respDB = await consulta(sqlList, []);
+    const lista = respDB.ok ? respDB.data : [];
+    console.log(lista.length);
+    classArray = materias(lista);
+
+    for (let i = 0; i < classArray.length; i++) {
+        let class_id = classArray[i].class_id;
+        let user_ids = "";
+        for (let j = 0; j < classArray[i].user_ids.length; j++) {
+            user_ids = user_ids + `&user_ids[]=${classArray[i].user_ids[j]}`;
+        }
+        const params = `&class_id=${class_id}${user_ids}`;
+        const respApi = await apiNeo(llaves.data[0].url_instancia, 'reactivate_students_in_class', llaves.data[0].api_key, params);
+        console.log(i + 1 + ` == &class_id=${class_id}`);
+        console.log(respApi);
+        await delay(100);
+        if (respApi.ok) {
+            respSuccess.push({
+                respApi,
+                params
+            });
+        } else {
+            respError.push({
+                respApi,
+                params
+            });
+        }
+    }
+
+    for (let i = 0; i < lista.length; i++) {
+        arrayUser.push(lista[i].lms_id_usuario);
+    }
+    const uSql = sqlUpdate + "(" + arrayUser.toString() + ");";
+    const respUDB = await consulta(uSql, []);
+    console.log(respUDB);
+
+    res.json(success({
+        msg: 'Resultado de activar materias de estudiantes',
+        data: {
+            tamuser: arrayUser.length,
+            tam: classArray.length,
+            success: respSuccess,
+            error: respError
+        }
+    }));
+
+}
+
+materias = (lista) => {
+    let classArray = [];
+    for (let i = 0; i < lista.length; i++) {
+        const materias = JSON.parse(lista[i].materias);
+        for (let j = 0; j < materias.length; j++) {
+            if (materias[j] != 3784887) {
+                const materia = classArray.find(element => element.class_id == materias[j]);
+                if (materia === undefined) {
+                    classArray.push({
+                        class_id: materias[j],
+                        user_ids: [lista[i].lms_id_usuario]
+                    });
+                }
+                classArray.forEach(c => {
+                    if (c.class_id === materias[j]) {
+                        c.user_ids.push(lista[i].lms_id_usuario);
+                    }
+                });
+            }
+        }
+
+    }
+    return classArray;
 }
 
 const llavesPorUsuario = async (id_usuario) => {
@@ -274,5 +365,6 @@ const apiNeo = async (url, metodo, api_key, parametros) => {
 module.exports = {
     excelEncuestas,
     desactivarMaterias,
-    activarMaterias
+    activarMaterias,
+    activar
 }

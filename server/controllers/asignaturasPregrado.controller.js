@@ -112,7 +112,7 @@ const datosPantillasPregrado = (lista) => {
             fecha_fin: otroFormatoFecha(lista[i].semestre_fecha_fin, 'MM/DD/YYYY'),
             fecha_inicio_or: lista[i].semestre_fecha_inicio,
             fecha_fin_or: lista[i].semestre_fecha_fin,
-            creditos: lista[i].paralelo_num_creditos,
+            creditos: lista[i].paralelo_num_creditos || 0,
             semestre: lista[i].semestre_resumido,
             codigo_curso: `${lista[i].id_regional}.${lista[i].id_materia}.${lista[i].id_docente}`,
             lenguaje: 'Español',
@@ -286,7 +286,150 @@ const crearParalelos = async(plist, url, api_key, user) => {
     return datosRes;
 }
 
+/* asignaturas practicas */
+const crearPlantillasPracticasPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const datosAsignaturas = await listaAsignaturasPracticasPorSemeste(id_semestre, id_regional);
+    if (!datosAsignaturas.ok) {
+        return res.status(500).json(datosAsignaturas);
+    }
+    const datosPlantillas = await plantillaPorRegional(id_regional);
+    if (!datosPlantillas.ok) {
+        return res.status(500).json(datosPlantillas);
+    }
+    console.log("datosAsignaturas", datosAsignaturas.data.length);
+    console.log("Plantillas", datosPlantillas.data.length);
+    const sinDuplicados = datosPantillasPregrado(datosAsignaturas.data);
+    console.log("sinDuplicados", sinDuplicados.length);
+    const plantillasACrear = quitarPlantillasExistentes(sinDuplicados, datosPlantillas.data);
+    console.log("plantillasACrear", plantillasACrear.length);
+    const respCreacion = await crearPlantillas(plantillasACrear, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaAsignaturasPracticasPorSemeste = async (id_semestre, id_regional) => {
+    const sqlAsignaturasPorSemestre = `select da.*, u.id_usuario, u.email_institucional, o.id_organizacion, o.nombre as nom_regional
+    from Datos_asignaturas_practicas da, Organizaciones o, Usuarios u
+    where da.id_regional = o.id_regional
+		and u.email_institucional = da.email_ucb_docente
+    and da.paralelo_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultAsignaturas = await consulta(sqlAsignaturasPorSemestre, [id_semestre, id_regional]);
+    return resultAsignaturas;
+}
+
+const crearParalelosPracticasPregrado = async (req = request, res = response) => {
+    const { id_usuario, usuario } = req.datos;
+    const user = usuario.split('@')[0];
+    const { id_semestre, id_regional } = req.body;
+    const llaves = await llavesPorUsuario(id_usuario);
+    if (!llaves.ok) {
+        return res.status(500).json(llaves);
+    }
+    const datosAsignaturas = await listaAsignaturasPracticasPorSemestrePlantilla(id_semestre, id_regional);
+    if (!datosAsignaturas.ok) {
+        return res.status(500).json(datosAsignaturas);
+    }
+    console.log("Paralelos", datosAsignaturas.data.length);
+    const listParalelos = datosParalelosPracticasPregrado(datosAsignaturas.data);
+    const respCreacion = await crearParalelosPracticas(listParalelos, llaves.data[0].url_instancia, llaves.data[0].api_key, user);
+    res.json(success(respCreacion));
+}
+
+const listaAsignaturasPracticasPorSemestrePlantilla = async (id_semestre, id_regional) => {
+    const sqlAsignaturasPorSemestre = `select da.*, p.id_plantilla, o.id_organizacion, o.nombre as nom_regional
+    from Datos_asignaturas_practicas da, Organizaciones o, Plantillas p
+    where da.id_regional = o.id_regional
+	and p.codigo_curso = da.codigo_curso_plantilla
+    and da.paralelo_nuevo = 1
+    and da.id_semestre = ?
+    and da.id_regional = ?`;
+    const resultAsignaturas = await consulta(sqlAsignaturasPorSemestre, [id_semestre, id_regional]);
+    return resultAsignaturas;
+}
+
+const datosParalelosPracticasPregrado = (lista) => {
+    let paralelos = [];
+    for (let i = 0; i < lista.length; i++) {
+        const p = {
+            nombre: `[${lista[i].semestre_resumido}] ${lista[i].materia_sigla} ${lista[i].materia_nombre} [Par.${lista[i].numero_paralelo}]`,
+            fecha_inicio: otroFormatoFecha(lista[i].semestre_fecha_inicio, 'MM/DD/YYYY'),
+            fecha_fin: otroFormatoFecha(lista[i].semestre_fecha_fin, 'MM/DD/YYYY'),
+            fecha_inicio_or: lista[i].semestre_fecha_inicio,
+            fecha_fin_or: lista[i].semestre_fecha_fin,
+            creditos: lista[i].paralelo_num_creditos,
+            semestre: lista[i].semestre_resumido,
+            codigo_curso: `${lista[i].id_regional}.${lista[i].id_paralelo_practica}.P`,
+            lenguaje: 'Español',
+            zona_horaria: 'La Paz',
+            mostrar_catalogo: true,
+            id_plantilla: lista[i].id_plantilla,
+            id_organizacion: lista[i].id_organizacion,
+            organizacion: lista[i].nom_regional,
+            id_paralelo_practica: lista[i].id_paralelo_practica
+        }
+        paralelos.push(p)
+    }
+    return paralelos;
+}
+
+const crearParalelosPracticas = async (plist, url, api_key, user) => {
+    let datosRes = {
+        totales: {
+            paralelos_creados_neo: 0,
+            insert_paralelos_db: 0,
+            error_creacion_paralelos_neo: 0,
+            error_insert_paralelos_db: 0,
+        },
+        datos_respuestas: []
+    };
+    for (let i = 0; i < plist.length; i++) {
+        const parametros = `&name=${plist[i].nombre}&start_at=${plist[i].fecha_inicio}&finish_at=${plist[i].fecha_fin}&credits=${plist[i].creditos}&semester=${plist[i].semestre}&course_code=${plist[i].codigo_curso}&language=${plist[i].lenguaje}&time_zone=${plist[i].zona_horaria}&display_in_catalog=${plist[i].mostrar_catalogo}&parent_id=${plist[i].id_plantilla}&organization_id=${plist[i].id_organizacion}`;
+        const resParalelos = await peticionApiNeo(url, 'add_class', api_key, parametros);
+        if (resParalelos.ok) {
+            datosRes.totales.paralelos_creados_neo = datosRes.totales.paralelos_creados_neo + 1;
+            const update = await updateParaleloPractica(plist[i].id_paralelo_practica)
+            const insertp = await insertParalelo(resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user);
+            if (!insertp.ok) {
+                datosRes.totales.error_insert_paralelos_db = datosRes.totales.error_insert_paralelos_db + 1;
+                datosRes.datos_respuestas.push({
+                    tipo: "Creacion en db auxiliar",
+                    datos: [resParalelos.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_plantilla, plist[i].id_organizacion, plist[i].organizacion, user].toString(),
+                    respuesta: insertp
+                });
+            } else {
+                datosRes.totales.insert_paralelos_db = datosRes.totales.insert_paralelos_db + 1;
+            }
+        } else {
+            datosRes.totales.error_creacion_paralelos_neo++;
+            datosRes.datos_respuestas.push({
+                tipo: "Creacion en NEO",
+                datos: parametros,
+                respuesta: resParalelos
+            });
+        }
+        //await delay(100)
+    }
+    return datosRes;
+}
+
+const updateParaleloPractica = async (id_paralelo) => {
+    const sqlUpdate = `UPDATE Datos_asignaturas_practicas SET paralelo_nuevo = 0 WHERE id_paralelo_practica = ?`;
+    const result = await consulta(sqlUpdate, [id_paralelo]);
+    return result;
+}
+/* asignaturas practicas */
+
 module.exports = {
     crearPlantillasPregrado,
-    crearParalelosPregrado
+    crearParalelosPregrado,
+    crearPlantillasPracticasPregrado,
+    crearParalelosPracticasPregrado
 }

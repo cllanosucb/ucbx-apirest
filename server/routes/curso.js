@@ -13,7 +13,9 @@ const {
 } = require('../middlewares/validar.campos.middleware');
 const {
     crearPlantillasPregrado,
-    crearParalelosPregrado
+    crearParalelosPregrado,
+    crearPlantillasPracticasPregrado,
+    crearParalelosPracticasPregrado
 } = require('../controllers/asignaturasPregrado.controller')
 
 app.get('/buscar', verificarToken, buscarCurso);
@@ -25,5 +27,9 @@ app.post('/guardar', verificarToken, validarCamposArrayCursos, guardarCurso);
 app.post('/crearPlantillasPregrado', verificarToken, crearPlantillasPregrado);
 
 app.post('/crearParalelosPregrado', verificarToken, crearParalelosPregrado);
+
+app.post('/crearPlantillasPracticasPregrado', verificarToken, crearPlantillasPracticasPregrado);
+
+app.post('/crearParalelosPracticasPregrado', verificarToken, crearParalelosPracticasPregrado);
 
 module.exports = app;

@@ -7,14 +7,17 @@ const {
 const {
     excelEncuestas,
     desactivarMaterias,
-    activarMaterias
+    activarMaterias,
+    activar
 } = require('../controllers/encuestas.nova.controller')
 
 app.put('/cargarExcel', verificarToken, excelEncuestas);
 
-app.get('/desactivarMaterias/estudiantes',verificarToken, desactivarMaterias);
+app.get('/desactivarMaterias/estudiantes', verificarToken, desactivarMaterias);
 
-app.get('/activarMaterias/estudiantes',verificarToken, activarMaterias);
+app.get('/activarMaterias/estudiantes', verificarToken, activarMaterias);
+
+app.get('/activarEstudiantes', verificarToken, activar);
 
 //app.get('/buscar', verificarToken, buscarCurso);
 
