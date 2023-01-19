@@ -258,7 +258,7 @@ const asignarDocentesParalelos = async (plist, url, api_key, user) => {
                 respuesta: respa
             });
         }
-        // await delay(200)
+        await delay(500)
     }
     const datos = updateDocentes.substring(0, updateDocentes.length - 1);
     await updateAsignaturasUsuario(datos);
@@ -486,7 +486,7 @@ const inscripcionesEstudiantesPregrado = async (req = request, res = response) =
         )));
     }
     console.log("listInsc.data", listInsc.data.length);
-    if (listInsc.data.length > 1000) {
+    if (listInsc.data.length > 500) {
         console.log("Cantidas de inscripciones", listInsc.data.length);
         const respinsc = await inscripcionesEstudiantesPorCsv(listInsc.data, user, req.get('host'));
         const updateInsc = await updateInscripciones(listInsc.data);
@@ -816,7 +816,7 @@ const asignarDocentesParalelosPracticas = async (plist, url, api_key, user) => {
                 respuesta: respa
             });
         }
-        // await delay(200)
+        await delay(500)
     }
     const datos = updateDocentes.substring(0, updateDocentes.length - 1);
     console.log(datos);
@@ -947,7 +947,7 @@ const inscripcionesPracticasEstudiantesPregrado = async (req = request, res = re
         )));
     }
     console.log("listInsc.data", listInsc.data.length);
-    if (listInsc.data.length > 1000) {
+    if (listInsc.data.length > 500) {
         console.log("Cantidas de inscripciones", listInsc.data.length);
         const respinsc = await inscripcionesPracticasEstudiantesPorCsv(listInsc.data, user, req.get('host'));
         const updateInsc = await updateInscripcionesPracticas(listInsc.data);

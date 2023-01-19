@@ -161,6 +161,7 @@ const crearPlantillas = async(plist, url, api_key, user) => {
     for (let i = 0; i < plist.length; i++) {
         const parametros = `&name=${plist[i].nombre}&start_at=${plist[i].fecha_inicio}&finish_at=${plist[i].fecha_fin}&credits=${plist[i].creditos}&semester=${plist[i].semestre}&course_code=${plist[i].codigo_curso}&language=${plist[i].lenguaje}&time_zone=${plist[i].zona_horaria}&display_in_catalog=${plist[i].mostrar_catalogo}&organization_id=${plist[i].id_organizacion}`;
         const resPlantilla = await peticionApiNeo(url, 'add_class_template', api_key, parametros);
+        console.log(">>>>>>", resPlantilla);
         if (resPlantilla.ok) {
             datosRes.totales.plantillas_creadas_neo = datosRes.totales.plantillas_creadas_neo + 1;
             const insertp = await insertPlantilla(resPlantilla.data.id, plist[i].nombre, plist[i].fecha_inicio_or, plist[i].fecha_fin_or, plist[i].creditos, plist[i].semestre, plist[i].codigo_curso, plist[i].id_organizacion, plist[i].organizacion, user);
@@ -196,7 +197,7 @@ const crearPlantillas = async(plist, url, api_key, user) => {
                 respuesta: resPlantilla
             });
         }
-        await delay(100)
+        await delay(500);
     }
     return datosRes;
 }
@@ -259,6 +260,7 @@ const crearParalelos = async(plist, url, api_key, user) => {
     for (let i = 0; i < plist.length; i++) {
         const parametros = `&name=${plist[i].nombre}&start_at=${plist[i].fecha_inicio}&finish_at=${plist[i].fecha_fin}&credits=${plist[i].creditos}&semester=${plist[i].semestre}&course_code=${plist[i].codigo_curso}&language=${plist[i].lenguaje}&time_zone=${plist[i].zona_horaria}&display_in_catalog=${plist[i].mostrar_catalogo}&parent_id=${plist[i].id_plantilla}&organization_id=${plist[i].id_organizacion}`;
         const resParalelos = await peticionApiNeo(url, 'add_class', api_key, parametros);
+        console.log(resParalelos);
         if (resParalelos.ok) {
             datosRes.totales.paralelos_creados_neo = datosRes.totales.paralelos_creados_neo + 1;
             const update = await updateParalelo(plist[i].id_paralelo)
@@ -281,7 +283,7 @@ const crearParalelos = async(plist, url, api_key, user) => {
                 respuesta: resParalelos
             });
         }
-        //await delay(100)
+        await delay(500)
     }
     return datosRes;
 }
