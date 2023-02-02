@@ -30,7 +30,7 @@ registrarAsignaturasPregrado = async(datos, user) => {
                 contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
             }
             //cambio de email de docente
-            if (datos[i].id_docente == existeDato.id_docente && datos[i].email_ucb_docente != existeDato.email_ucb_docente) {
+            if (datos[i].id_docente == existeDato.id_docente && datos[i].email_ucb_docente.toLowerCase() != existeDato.email_ucb_docente) {
                 console.log(datos[i].id_docente + '==' + existeDato.id_docente + '&&' + datos[i].email_ucb_docente + '!=' + existeDato.email_ucb_docente);
                 const respUpdate = await consulta(sqlUpdateAsignaturas, transformarDatosAsignaturaUpdate(datos[i], user))
                 contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
@@ -313,10 +313,9 @@ registrarAsignaturasPracticasPregrado = async (datos, user) => {
     sexo_docente=?, fecha_nacimiento_docente=?, celular_docente=?, email_ucb_docente=?, id_regional=?, nombre_regional=?, departamento_docente=?, docente_nuevo=?, usuario_registro=? WHERE id_paralelo_practica = ?`;
     let valuesIsert = "";
     const listAnt = await listDatosAntPracticas(datos);
-    console.log(listAnt);
-    console.log("listAnt.length", listAnt.length);
+    console.log("listAnt", listAnt.length);
     for (let i = 0; i < datos.length; i++) {
-        existeDato = listAnt.find(a => a.id_paralelo == datos[i].id_paralelo);
+        existeDato = listAnt.find(a => a.id_paralelo_practica === datos[i].id_paralelo_practica);
         if (existeDato === undefined) {
             valuesIsert = valuesIsert + valoresAsignaturaPractica(datos[i], user);
         } else {
@@ -325,8 +324,8 @@ registrarAsignaturasPracticasPregrado = async (datos, user) => {
                 contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
             }
             //cambio de email de docente
-            if (datos[i].id_docente == existeDato.id_docente && datos[i].email_ucb_docente != existeDato.email_ucb_docente) {
-                console.log(datos[i].id_docente +'=='+ existeDato.id_docente +'&&'+ datos[i].email_ucb_docente +'!='+ existeDato.email_ucb_docente);
+            if (datos[i].id_docente == existeDato.id_docente && datos[i].email_ucb_docente.toLowerCase() != existeDato.email_ucb_docente) {
+                //console.log(datos[i].id_docente +'=='+ existeDato.id_docente +'&&'+ datos[i].email_ucb_docente +'!='+ existeDato.email_ucb_docente);
                 const respUpdate = await consulta(sqlUpdateAsignaturas, transformarDatosAsignaturaPracticaUpdate(datos[i], user))
                 contUpdate = respUpdate.ok ? contUpdate + 1 : contErroUpdate + 1;
             }
