@@ -5,7 +5,7 @@ const fetch = (...args) =>
     import ('node-fetch').then(({ default: fetch }) => fetch(...args));
 const { consulta, peticionNeo } = require('./querys.controller');
 const { error, success } = require('./respuestas.controller');
-const { formatoFecha } = require('../tools/util.tools');
+const { formatoFecha, otroFormatoFecha } = require('../tools/util.tools');
 
 registrarAsignaturasPregrado = async(datos, user) => {
     let insert = {};
@@ -270,9 +270,13 @@ obtenerRegistrosACrear = async (datos, listdb, user) => {
     datos.map(i => {
         const insc = listdb.find(li => {
             if (li.id_paralelo === i.id_paralelo && li.id_persona_est === i.id_persona_est && li.estado_movimiento === i.estado_movimiento) {
-                if (!li.fecha_registro_est != formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "") {
+                const fechaA = formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "";
+                if (li.fecha_registro_est.slice(0, li.fecha_registro_est.length - 3) == fechaA.slice(0, fechaA.length - 3)) {
                     return li;
                 }
+                /* if (!li.fecha_registro_est != formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "") {
+                    return li;
+                } */
             }
         });
         if (insc === undefined) {
@@ -490,9 +494,14 @@ obtenerRegistrosPracticasACrear = async (datos, listdb, user) => {
     datos.map(i => {
         const insc = listdb.find(li => {
             if (li.id_paralelo_practica === i.id_paralelo_practica && li.id_persona_est === i.id_persona_est && li.estado_movimiento === i.estado_movimiento) {
-                if (!li.fecha_registro_est != formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "") {
+                const fechaA = formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "";
+                if (li.fecha_registro_est.slice(0, li.fecha_registro_est.length - 3) == fechaA.slice(0, fechaA.length - 3)) {
                     return li;
                 }
+                
+                /* if (!li.fecha_registro_est != formatoFecha(i.fecha_registro_est, 'DD/MM/YYYY HH:mm:ss') + "") {
+                    return li;
+                } */
             }
         });
         if (insc === undefined) {
