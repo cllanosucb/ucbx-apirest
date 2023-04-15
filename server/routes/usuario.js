@@ -21,7 +21,12 @@ const {
     asignarParalelosPracticasDocentesPregrado,
     crearEstudiantesPregradoPractica,
     retirosEstudiantesPracticasPregrado,
-    inscripcionesPracticasEstudiantesPregrado
+    inscripcionesPracticasEstudiantesPregrado,
+    crearDocentesPostgrado,
+    asignarParalelosDocentesPostgrado,
+    crearEstudiantesPostgrado,
+    retirosEstudiantesPostgrado,
+    inscripcionesEstudiantesPostgrado
 } = require('../controllers/usuariosPregrado.controller');
 
 app.post('/registarporcursos', verificarToken, validarCamposListCursos, registrarUsuariosPorCurso);
@@ -51,5 +56,21 @@ app.post('/crearEstudiantesPregradoPractica', verificarToken, crearEstudiantesPr
 app.post('/retirosEstudiantesPracticasPregrado', verificarToken, retirosEstudiantesPracticasPregrado);
 
 app.post('/inscripcionesPracticasEstudiantesPregrado', verificarToken, inscripcionesPracticasEstudiantesPregrado);
+
+/*
+POSTGRADO
+*/
+app.post('/crearDocentesPostgrado', verificarToken, crearDocentesPostgrado);
+
+app.post('/asignarParalelosDocentesPostgrado', verificarToken, asignarParalelosDocentesPostgrado);
+
+app.post('/crearEstudiantesPostgrado', verificarToken, crearEstudiantesPostgrado);
+
+app.post('/retirosEstudiantesPostgrado', verificarToken, retirosEstudiantesPostgrado);
+
+app.post('/inscripcionesEstudiantesPostgrado', verificarToken, inscripcionesEstudiantesPostgrado);
+/*
+POSTGRADO
+*/
 
 module.exports = app;

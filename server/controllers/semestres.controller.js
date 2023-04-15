@@ -4,7 +4,7 @@ const { consulta, peticionNeo } = require('./querys.controller');
 const { error, success } = require('./respuestas.controller');
 
 const semestresActivos = async(req = request, res = response) => {
-    const sqlSemestresActivos = "select * from Periodos_academicos where estado = 1";
+    const sqlSemestresActivos = "select * from Periodos_academicos where estado = 1 order by id_regional, id_periodo_academico";
     const respSemestres = await consulta(sqlSemestresActivos, []);
     if (!respSemestres.ok) {
         return res.status(500).json(error({

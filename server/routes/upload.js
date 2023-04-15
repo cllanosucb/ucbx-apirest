@@ -8,7 +8,9 @@ const {
     excelPregradoInscripciones,
     excelPregradoInscripcionesPrueba,
     subirExcelPregradoAsignaturasPracticas,
-    excelPregradoInscripcionesPracticas
+    excelPregradoInscripcionesPracticas,
+    subirExcelPostgrado,
+    excelPostgradoInscripciones
 } = require('../controllers/upload.controller');
 
 app.put('/excelPregrado', verificarToken, subirExcelPregrado);
@@ -20,5 +22,10 @@ app.put('/excelPregradoInscripcionesPrueba', verificarToken, excelPregradoInscri
 app.put('/excelPregradoPracticas', verificarToken, subirExcelPregradoAsignaturasPracticas);
 
 app.put('/excelPregradoInscripcionesPracticas', verificarToken, excelPregradoInscripcionesPracticas);
+
+// postgrado
+app.put('/excelPostgrado', verificarToken, subirExcelPostgrado);
+
+app.put('/excelPostgradoInscripciones', verificarToken, excelPostgradoInscripciones);
 
 module.exports = app;

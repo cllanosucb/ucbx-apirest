@@ -15,7 +15,9 @@ const {
     crearPlantillasPregrado,
     crearParalelosPregrado,
     crearPlantillasPracticasPregrado,
-    crearParalelosPracticasPregrado
+    crearParalelosPracticasPregrado,
+    crearPlantillasPostgrado,
+    crearParalelosPostgrado
 } = require('../controllers/asignaturasPregrado.controller')
 
 app.get('/buscar', verificarToken, buscarCurso);
@@ -31,5 +33,15 @@ app.post('/crearParalelosPregrado', verificarToken, crearParalelosPregrado);
 app.post('/crearPlantillasPracticasPregrado', verificarToken, crearPlantillasPracticasPregrado);
 
 app.post('/crearParalelosPracticasPregrado', verificarToken, crearParalelosPracticasPregrado);
+
+/*
+POSTGRADO
+*/
+app.post('/crearPlantillasPostgrado', verificarToken, crearPlantillasPostgrado);
+
+app.post('/crearParalelosPostgrado', verificarToken, crearParalelosPostgrado);
+/*
+POSTGRADO
+*/
 
 module.exports = app;
