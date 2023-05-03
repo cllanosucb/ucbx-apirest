@@ -26,10 +26,12 @@ registrarAsignaturasMoodle = async (datos, user) => {
     let contErrorInsert = 0;
     let contUpdate = 0;
     let contErroUpdate = 0;
-    
     let valuesInsert = "";
-    const listAnt = await listDatosAnt(datos);
-    console.log("listAnt.length teoricas", listAnt.length);
+
+    const listAnteriores = await listaDatosRegistrados(datos);
+    console.log(listAnteriores);
+    
+    
     for (let i = 0; i < datos.length; i++) {
         existeDato = listAnt.find(a => a.id_paralelo == datos[i].id_paralelo);
         if (existeDato === undefined) {

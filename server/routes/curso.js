@@ -22,6 +22,7 @@ const {
 
 const {
     //nombreFuncion
+    crearParalelosMoodle
 } = require('../controllers/moodle/asignaturas.moodle.controller');
 
 app.get('/buscar', verificarToken, buscarCurso);

@@ -32,7 +32,7 @@ app.put('/excelPostgradoInscripciones', verificarToken, excelPostgradoInscripcio
 
 /** MOODLE */
 //subir archivo de datos de materias
-app.put('/moodle/subirExcelMoodle', verificarToken, subirExcelMoodle);
+//app.put('/moodle/subirExcelMoodle', verificarToken, subirExcelMoodle);
 //subir archivo de datos de inscripción
 //app.put('/moodle/excelPostgradoInscripciones', verificarToken, excelInscripcionesMoodle);
 /** MOODLE */
