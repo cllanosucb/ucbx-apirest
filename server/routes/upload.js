@@ -13,6 +13,8 @@ const {
     excelPostgradoInscripciones
 } = require('../controllers/upload.controller');
 
+const {} = require('../controllers/moodle/upload.moodle.controller');
+
 app.put('/excelPregrado', verificarToken, subirExcelPregrado);
 
 app.put('/excelPregradoInscripciones', verificarToken, excelPregradoInscripciones);
@@ -27,5 +29,12 @@ app.put('/excelPregradoInscripcionesPracticas', verificarToken, excelPregradoIns
 app.put('/excelPostgrado', verificarToken, subirExcelPostgrado);
 
 app.put('/excelPostgradoInscripciones', verificarToken, excelPostgradoInscripciones);
+
+/** MOODLE */
+//subir archivo de datos de materias
+app.put('/moodle/subirExcelMoodle', verificarToken, subirExcelMoodle);
+//subir archivo de datos de inscripción
+//app.put('/moodle/excelPostgradoInscripciones', verificarToken, excelInscripcionesMoodle);
+/** MOODLE */
 
 module.exports = app;

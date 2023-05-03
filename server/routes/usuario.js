@@ -73,4 +73,16 @@ app.post('/inscripcionesEstudiantesPostgrado', verificarToken, inscripcionesEstu
 POSTGRADO
 */
 
+/** MOODLE */
+//app.post('/moodle/crearDocentesMoodle', verificarToken, crearDocentesMoodle);
+
+//app.post('/moodle/asignarParalelosDocentesMoodle', verificarToken, asignarParalelosDocentesMoodle);
+
+//app.post('/moodle/crearEstudiantesMoodle', verificarToken, crearEstudiantesMoodle);
+
+//app.post('/moodle/retirosEstudiantesMoodle', verificarToken, retirosEstudiantesMoodle);
+
+//app.post('/moodle/inscripcionesEstudiantesMoodle', verificarToken, inscripcionesEstudiantesMoodle);
+/** MOODLE */
+
 module.exports = app;

@@ -18,7 +18,11 @@ const {
     crearParalelosPracticasPregrado,
     crearPlantillasPostgrado,
     crearParalelosPostgrado
-} = require('../controllers/asignaturasPregrado.controller')
+} = require('../controllers/asignaturasPregrado.controller');
+
+const {
+    //nombreFuncion
+} = require('../controllers/moodle/asignaturas.moodle.controller');
 
 app.get('/buscar', verificarToken, buscarCurso);
 
@@ -43,5 +47,9 @@ app.post('/crearParalelosPostgrado', verificarToken, crearParalelosPostgrado);
 /*
 POSTGRADO
 */
+
+/** MOODLE */
+//app.post('/moodle/crearParalelosMoodle', verificarToken, crearParalelosMoodle);
+/** MOODLE */
 
 module.exports = app;
