@@ -9,7 +9,6 @@ const {
     usuarioPorToken,
     obtenerMenuPorUsuario
 } = require('../controllers/usuarios.controller');
-
 const {
     crearDocentesPregrado,
     asignarParalelosDocentesPregrado,
@@ -28,6 +27,9 @@ const {
     retirosEstudiantesPostgrado,
     inscripcionesEstudiantesPostgrado
 } = require('../controllers/usuariosPregrado.controller');
+const {
+    crearDocentesMoodle
+} = require('../controllers/moodle/usuarios.moodle.controller');
 
 app.post('/registarporcursos', verificarToken, validarCamposListCursos, registrarUsuariosPorCurso);
 
@@ -74,7 +76,7 @@ POSTGRADO
 */
 
 /** MOODLE */
-//app.post('/moodle/crearDocentesMoodle', verificarToken, crearDocentesMoodle);
+app.post('/moodle/crearDocentesMoodle', verificarToken, crearDocentesMoodle);
 
 //app.post('/moodle/asignarParalelosDocentesMoodle', verificarToken, asignarParalelosDocentesMoodle);
 

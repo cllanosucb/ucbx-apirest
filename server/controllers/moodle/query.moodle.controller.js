@@ -1,9 +1,9 @@
-const db = require('../../db/mariadb');
+const db = require('../../db/mariadbMoodle');
 const fetch = (...args) =>
     import('node-fetch').then(({ default: fetch }) => fetch(...args));
-const { error, success } = require('./respuestas.controller');
+const { error, success } = require('./respuestas.moodle.controller');
 
-const consulta = async (query, values) => {
+const consultaMoodle = async (query, values) => {
     let dbconn;
     try {
         dbconn = await db.mariaDbConnection();
@@ -19,22 +19,9 @@ const consulta = async (query, values) => {
     }
 };
 
-const peticionNeo = async (metodo, parametros) => {
+const peticionApiMoodle = async (url, nameFunction, api_key, params) => {
     try {
-        const respAPI = await fetch(`${process.env.URL}/${metodo}?api_key=${process.env.API_KEY}${parametros}`);
-        const data = await respAPI.json();
-        return success(data);
-    } catch (err) {
-        return error({
-            msg: "Error interno del servidor",
-            error: err
-        });
-    }
-}
-
-const peticionApiNeo = async (url, metodo, api_key, parametros) => {
-    try {
-        const respAPI = await fetch(`${url}/${metodo}?api_key=${api_key}${parametros}`);
+        const respAPI = await fetch(`${url}?wstoken=${api_key}&wsfunction=${nameFunction}&moodlewsrestformat=json${params}`);
         const data = await respAPI.json();
         return success(data);
     } catch (err) {
@@ -46,7 +33,6 @@ const peticionApiNeo = async (url, metodo, api_key, parametros) => {
 }
 
 module.exports = {
-    consulta,
-    peticionNeo,
-    peticionApiNeo
+    consultaMoodle,
+    peticionApiMoodle
 };

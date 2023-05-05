@@ -1,24 +1,12 @@
 require('dotenv').config();
 const xlsx = require('xlsx');
 const { request, response } = require('express');
-
-const db = require('../db/mariadb');
-const fetch = (...args) =>
-    import('node-fetch').then(({ default: fetch }) => fetch(...args));
-const { consulta, peticionNeo } = require('./querys.controller');
-const { error, success } = require('./respuestas.controller');
-const { subirArchivo } = require('../tools/fileupload.tool');
-const { formatoFecha } = require('../tools/util.tools');
+const { error, success } = require('./respuestas.moodle.controller');
+const { subirArchivo } = require('../../tools/fileupload.tool');
 const {
-    registrarAsignaturasPregrado,
-    registrarInscripcionesPregrado,
-    registrarInscripcionesPregradoPrueba,
-    registrarAsignaturasPracticasPregrado,
-    registrarInscripcionesPregradoPracticas,
-    registrarAsignaturasPostgrado,
-    registrarInscripcionesPostgrado
+    registrarAsignaturasMoodle
 
-} = require('./pregrado.controller');
+} = require('./moodle.controller');
 
 
 const subirExcelMoodle = async (req = request, res = response) => {
@@ -50,10 +38,8 @@ const subirExcelMoodle = async (req = request, res = response) => {
 
         //console.log(respCargaDatos);
         return res.status(200).json(success({
-            msg: "Resultado de creación",
-            data: JSON.stringify(respCargaDatos.data, (key, value) =>
-                typeof value === "bigint" ? value.toString() + "" : value
-            )
+            msg: "Resultado de la creación de registros",
+            data: respCargaDatos
         }));
     } catch (err) {
         console.log(err);
@@ -76,14 +62,9 @@ cargarDatosExcel = async (ruta, user, tipo_archivo) => {
     //console.log(`${hoja1} - ${hoja2}`);
     const datos = xlsx.utils.sheet_to_json(workbook.Sheets[hoja1]);
     if( tipo_archivo = 1) {
-        const respInsertAsignaturas = await registrarAsignaturasPostgrado(datos, user);
+        const respInsertAsignaturas = await registrarAsignaturasMoodle(datos, user);
         console.log("respInsertAsignaturas", respInsertAsignaturas);
-        return success({
-            msg: "Resultado de la creación de registros",
-            data: {
-                asignaturas: respInsertAsignaturas.ok ? respInsertAsignaturas.data : respInsertAsignaturas.error,
-            }
-        });
+        return respInsertAsignaturas.ok ? respInsertAsignaturas.data : respInsertAsignaturas.error;
     }
     if( tipo_archivo = 2) {
 

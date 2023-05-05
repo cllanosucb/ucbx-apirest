@@ -72,6 +72,27 @@ guardarCsv = (ruta, datos, host) => {
     }
 }
 
+const literalTipoParalelo = (tipo_paralelo) => {
+    const tipos = [
+        {
+            id: 1,
+            valor: 'Pregrado teórico'
+        },
+        {
+            id: 2,
+            valor: 'Pregrado practicas'
+        },
+        {
+            id: 3,
+            valor: 'Postgrado teóricas'
+        }
+    ];
+    const item = tipos.find(i => i.id === tipo_paralelo);
+
+    return item ? item.valor : 'Sin tipo'
+
+}
+
 
 module.exports = {
     formatoFecha,
@@ -80,5 +101,6 @@ module.exports = {
     otroFormatoFecha,
     delay,
     capitalizar,
-    guardarCsv
+    guardarCsv,
+    literalTipoParalelo
 }
