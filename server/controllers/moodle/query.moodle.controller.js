@@ -22,8 +22,28 @@ const consultaMoodle = async (query, values) => {
 const peticionApiMoodle = async (url, nameFunction, api_key, params) => {
     try {
         const respAPI = await fetch(`${url}?wstoken=${api_key}&wsfunction=${nameFunction}&moodlewsrestformat=json${params}`);
-        const data = await respAPI.json();
-        return success(data);
+        console.log('respAPI.ok >>>>>>>> ',respAPI.ok);
+        console.log('respAPI.status >>>>>>>> ',respAPI.status);
+        console.log('respAPI.statusText >>>>>>>> ',respAPI.statusText);
+        if (respAPI.ok) {
+            const json = await respAPI.json();
+            if (json.exception != undefined) {
+                return error({
+                    msg: json.message,
+                    error: json
+                });
+            }
+            return success(json);
+        }
+        if(respAPI.status >= 300) {
+            return error({
+                status: respAPI.status,
+                msg: respAPI.statusText
+            });
+        }
+
+        //const data = await respAPI.json();
+        //return success(data);
     } catch (err) {
         return error({
             msg: "Error interno del servidor",

@@ -50,7 +50,7 @@ POSTGRADO
 */
 
 /** MOODLE */
-//app.post('/moodle/crearParalelosMoodle', verificarToken, crearParalelosMoodle);
+app.post('/moodle/crearParalelosMoodle', verificarToken, crearParalelosMoodle);
 /** MOODLE */
 
 module.exports = app;
