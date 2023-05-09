@@ -577,10 +577,11 @@ registrarAsignaturasPostgrado = async (datos, user) => {
     const sqlUpdateAsignaturas = `UPDATE Datos_asignaturas_postgrado SET id_docente=?, ap_paterno_docente=?, ap_materno_docente=?, nombres_docente=?, ci_docente=?,
     sexo_docente=?, fecha_nacimiento_docente=?, celular_docente=?, email_ucb_docente=?, id_regional=?, nombre_regional=?, departamento_docente=?, docente_nuevo=?, usuario_registro=? WHERE id_paralelo = ?`;
     let valuesIsert = "";
-    const listAnt = await listDatosAnt(datos);
+    const listAnt = await listDatosAntPostgrado(datos);
     console.log("listAnt.length teoricas", listAnt.length);
     for (let i = 0; i < datos.length; i++) {
         existeDato = listAnt.find(a => a.id_paralelo == datos[i].id_paralelo);
+        console.log(existeDato);
         if (existeDato === undefined) {
             valuesIsert = valuesIsert + valoresAsignaturaPostgrado(datos[i], user);
         } else {
@@ -611,6 +612,19 @@ registrarAsignaturasPostgrado = async (datos, user) => {
         contErroUpdate
     });
 }
+
+const listDatosAntPostgrado = async (lista) => {
+    let paralelos = "";
+    lista.map(a => {
+        paralelos = paralelos + a.id_paralelo + ",";
+
+    });
+    const datos = paralelos.substring(0, paralelos.length - 1);
+    const sqlDatos = `SELECT * FROM Datos_asignaturas_postgrado WHERE id_paralelo in (${datos})`;
+    const result = await consulta(sqlDatos, []);
+    return result.ok ? result.data : [];
+}
+
 
 const valoresAsignaturaPostgrado = (a, user) => {
     return `(${a.semestre_descripcion === undefined ? null : `'${a.semestre_descripcion}'`},'${formatoFecha(a.semestre_fecha_inicio, 'YYYY-MM-DD')}','${formatoFecha(a.semestre_fecha_fin, 'YYYY-MM-DD')}','${a.semestre_resumido}',${a.id_semestre === undefined ? null : `'${a.id_semestre}'`},${a.id_paralelo},${a.paralelo_num_creditos === undefined ? null : a.paralelo_num_creditos},${a.numero_paralelo},${a.id_materia},'${a.materia_sigla}','${a.materia_nombre}',${a.id_carrera === undefined ? null : a.id_carrera},${a.carrera_nombre === undefined ? null : `'${a.carrera_nombre}'`},${a.departamento_materia === undefined ? null : `'${a.departamento_materia}'`},${a.num_alumnos_inscritos === undefined ? null : `'${a.num_alumnos_inscritos}'`},${a.id_docente},${a.ap_paterno_docente === undefined ? null : `'${a.ap_paterno_docente}'`},${a.ap_materno_docente === undefined ? null : `'${a.ap_materno_docente}'`},'${a.nombres_docente}','${a.ci_docente}',${a.sexo_docente === undefined ? null : a.sexo_docente},${a.fecha_nacimiento_docente === undefined ? null : `'${formatoFecha(a.fecha_nacimiento_docente, 'YYYY-MM-DD')}'`},${a.celular_docente === undefined ? null : `'${a.celular_docente}'`},${a.email_ucb_docente === undefined ? null : `'${a.email_ucb_docente.toLowerCase()}'`},${a.id_regional === undefined ? null : a.id_regional},'${a.nombre_regional}',${a.departamento_docente === undefined ? null : `'${a.departamento_docente}'`},'${a.id_regional}.${a.id_materia}.${a.id_docente}','${a.id_regional}.${a.id_paralelo}','${user}'),`;
