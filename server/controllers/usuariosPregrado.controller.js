@@ -462,7 +462,6 @@ const procesarRetiros = async (d, url, api_key, user) => {
             params = params + "&user_ids[]=" + d[i].ests[j].id_usuario
         }
         const resp = await peticionApiNeo(url, 'remove_students_from_class', api_key, params);
-        await delay(200);
         const result = {
             class_id: d[i].id_class,
             cantidad: d[i].ests.length,
@@ -470,6 +469,7 @@ const procesarRetiros = async (d, url, api_key, user) => {
             result: resp
         }
         respData.data.push(result);
+        await delay(700);
     }
     return respData
 }
